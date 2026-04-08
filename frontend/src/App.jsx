@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Routes, Route, NavLink, Navigate } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Upload, Sun, Moon, Code2, Palette } from "lucide-react";
+import { LayoutDashboard, BookOpen, Sun, Moon, Code2, Palette } from "lucide-react";
 import { useTheme } from "./hooks/useTheme";
 import Dashboard from "./pages/Dashboard";
 import CoursePage from "./pages/CoursePage";
 import CoursesPage from "./pages/CoursesPage";
-import UploadPage from "./pages/UploadPage";
 
 const NAV = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/courses", icon: BookOpen, label: "Courses" },
-  { to: "/upload", icon: Upload, label: "Upload" },
 ];
 
 const THEME_ICONS = { dark: Moon, light: Sun, code: Code2 };
@@ -97,7 +95,6 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/courses/:id" element={<CoursePage />} />
-          <Route path="/upload" element={<UploadPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Loader2, BookOpen, Upload, Sparkles, FileText } from "lucide-react";
-import { getCourses, getMaterials, getAssignments } from "../api/client";
+import { ChevronRight, Loader2, BookOpen, Sparkles, FileText } from "lucide-react";
+import { getCourses } from "../api/client";
 
 export default function Dashboard() {
   const [courses, setCourses] = useState([]);
@@ -48,12 +48,7 @@ export default function Dashboard() {
               <Link to="/courses"
                 className="font-mono text-xs font-bold tracking-wider px-5 py-2.5 rounded-lg transition"
                 style={{ background: "var(--accent)", color: "var(--bg)" }}>
-                ADD COURSES
-              </Link>
-              <Link to="/upload"
-                className="flex items-center gap-2 font-mono text-xs font-bold tracking-wider px-5 py-2.5 rounded-lg transition"
-                style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
-                <Upload size={12} /> UPLOAD FILES
+                GET STARTED
               </Link>
             </div>
           </div>

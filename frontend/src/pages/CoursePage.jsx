@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
-  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus,
+  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus, Upload,
 } from "lucide-react";
 import {
   getCourse, getAssignments, getMaterials, getSteps, createAssignment,
   generateSteps, toggleStep, generateStudyGuide,
-  generateHomeworkTurnin, generateHomeworkStudy,
+  generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
 } from "../api/client";
 
 function Modal({ onClose, wide, children }) {
@@ -45,6 +45,10 @@ export default function CoursePage() {
   const [studyExamTitle, setStudyExamTitle] = useState("Midterm");
   const [selectedMaterials, setSelectedMaterials] = useState([]);
   const [assignmentForm, setAssignmentForm] = useState({ title: "", description: "" });
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadType, setUploadType] = useState("slides");
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -123,6 +127,19 @@ export default function CoursePage() {
     } catch {}
   };
 
+  const handleUploadFiles = async (files) => {
+    setUploading(true);
+    for (const file of files) {
+      try { await uploadMaterial(id, file, uploadType); } catch {}
+    }
+    const m = await getMaterials(id);
+    setMaterials(m);
+    setSelectedMaterials(m.map((mat) => mat.id));
+    setUploading(false);
+    setShowUpload(false);
+    if (fileInput.current) fileInput.current.value = "";
+  };
+
   const toggleMaterial = (matId) => {
     setSelectedMaterials((prev) =>
       prev.includes(matId) ? prev.filter((x) => x !== matId) : [...prev, matId]
@@ -163,15 +180,15 @@ export default function CoursePage() {
             <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>
               MATERIALS ({materials.length})
             </h2>
-            <Link to="/upload" className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
+            <button onClick={() => setShowUpload(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
               + UPLOAD
-            </Link>
+            </button>
           </div>
           {materials.length === 0 ? (
             <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <FileText size={20} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />
               <p className="text-xs" style={{ color: "var(--text-dim)" }}>No materials yet</p>
-              <Link to="/upload" className="text-xs mt-1 inline-block" style={{ color: "var(--accent)" }}>Upload files →</Link>
+              <button onClick={() => setShowUpload(true)} className="text-xs mt-1" style={{ color: "var(--accent)" }}>Upload files →</button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -303,6 +320,57 @@ export default function CoursePage() {
             style={{ background: "var(--accent)", color: "var(--bg)" }}>
             ADD ASSIGNMENT
           </button>
+        </Modal>
+      )}
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <Modal onClose={() => setShowUpload(false)}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Upload Materials</h2>
+            <button onClick={() => setShowUpload(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+          </div>
+          <div className="mb-4">
+            <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { value: "slides", label: "Slides" },
+                { value: "textbook", label: "Textbook" },
+                { value: "assignment", label: "Assignment" },
+                { value: "syllabus", label: "Syllabus" },
+                { value: "announcement", label: "Announcement" },
+                { value: "other", label: "Other" },
+              ].map((t) => (
+                <button key={t.value} onClick={() => setUploadType(t.value)}
+                  className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
+                  style={{
+                    background: uploadType === t.value ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)",
+                    color: uploadType === t.value ? "var(--accent)" : "var(--text-muted)",
+                    border: `1px solid ${uploadType === t.value ? "var(--accent)" : "var(--border)"}`,
+                  }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div
+            onClick={() => fileInput.current?.click()}
+            className="rounded-xl p-8 text-center cursor-pointer transition"
+            style={{ border: "2px dashed var(--border)" }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadFiles(Array.from(e.dataTransfer.files)); }}>
+            {uploading ? (
+              <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} />
+            ) : (
+              <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />
+            )}
+            <p className="text-sm" style={{ color: uploading ? "var(--accent)" : "var(--text)" }}>
+              {uploading ? "Uploading..." : "Drop files or click to browse"}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>PDF, PPTX, TXT, MD</p>
+          </div>
+          <input ref={fileInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden"
+            onChange={(e) => { if (e.target.files.length) handleUploadFiles(Array.from(e.target.files)); }} />
         </Modal>
       )}
 

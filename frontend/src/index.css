@@ -2,23 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background: #0a0a0f;
-  color: #e8e8ed;
-  font-family: "DM Sans", system-ui, sans-serif;
-  margin: 0;
+:root {
+  --bg: #0A0A0F;
+  --bg-card: #111118;
+  --bg-hover: #18181F;
+  --bg-input: #0e0e14;
+  --text: #E8E8ED;
+  --text-muted: #888;
+  --text-dim: #555;
+  --border: #1E1E28;
+  --border-light: #2A2A36;
+  --accent: #E8FF5A;
+  --accent-rgb: 232,255,90;
+  --accent-secondary: #5AF0FF;
+  --accent-pink: #FF5A8A;
+  --accent-green: #5AFF8C;
+  --accent-red: #FF5A5A;
+  --modal-overlay: rgba(0,0,0,0.65);
 }
 
-::-webkit-scrollbar {
-  width: 5px;
+[data-theme="light"] {
+  --bg: #F4F4F8;
+  --bg-card: #FFFFFF;
+  --bg-hover: #EAEAEF;
+  --bg-input: #FFFFFF;
+  --text: #1A1A22;
+  --text-muted: #6B6B78;
+  --text-dim: #9B9BA8;
+  --border: #DDDDE3;
+  --border-light: #CCCCD4;
+  --accent: #2563EB;
+  --accent-rgb: 37,99,235;
+  --accent-secondary: #0891B2;
+  --accent-pink: #DB2777;
+  --accent-green: #16A34A;
+  --accent-red: #DC2626;
+  --modal-overlay: rgba(0,0,0,0.25);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+[data-theme="neon"] {
+  --bg: #1A1B26;
+  --bg-card: #16161E;
+  --bg-hover: #222236;
+  --bg-input: #13131B;
+  --text: #C0CAF5;
+  --text-muted: #7982A9;
+  --text-dim: #565F89;
+  --border: #292E42;
+  --border-light: #3B4261;
+  --accent: #7AA2F7;
+  --accent-rgb: 122,162,247;
+  --accent-secondary: #7DCFFF;
+  --accent-pink: #FF007C;
+  --accent-green: #9ECE6A;
+  --accent-red: #F7768E;
+  --modal-overlay: rgba(0,0,0,0.7);
 }
-::-webkit-scrollbar-thumb {
-  background: #2a2a36;
-  border-radius: 3px;
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "DM Sans", system-ui, sans-serif;
+  margin: 0;
+  transition: background 0.25s, color 0.25s;
 }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -28,9 +79,10 @@ body {
   from { opacity: 0; transform: translateX(-8px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.animate-fade-up {
-  animation: fadeUp 0.35s ease both;
-}
-.animate-slide-in {
-  animation: slideIn 0.3s ease both;
+.animate-fade-up { animation: fadeUp 0.35s ease both; }
+.animate-slide-in { animation: slideIn 0.3s ease both; }
+
+select {
+  background-color: var(--bg-input) !important;
+  color: var(--text) !important;
 }

@@ -12,7 +12,6 @@ class MaterialType(str, enum.Enum):
     TEXTBOOK = "textbook"
     ASSIGNMENT = "assignment"
     ANNOUNCEMENT = "announcement"
-    PIAZZA = "piazza"
     OTHER = "other"
 
 

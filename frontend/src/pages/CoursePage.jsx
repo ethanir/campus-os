@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  ArrowLeft, Sparkles, Loader2, FileText, Check, Circle,
-  BookOpen, ChevronDown, ChevronUp, Pencil,
-} from "lucide-react";
-import {
-  getCourse, getAssignments, getMaterials, getSteps,
-  generateSteps, toggleStep, parseSyllabus, generateDraft,
-  generateStudyGuide,
-} from "../api/client";
+import { ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen, ChevronDown, ChevronUp, Pencil, X } from "lucide-react";
+import { getCourse, getAssignments, getMaterials, getSteps, generateSteps, toggleStep, parseSyllabus, generateDraft, generateStudyGuide } from "../api/client";
 
 export default function CoursePage() {
   const { id } = useParams();
@@ -18,162 +11,116 @@ export default function CoursePage() {
   const [expanded, setExpanded] = useState(null);
   const [steps, setSteps] = useState({});
   const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(null); // "parse" | "steps-{id}" | "draft-{id}" | "study"
+  const [aiLoading, setAiLoading] = useState(null);
   const [draft, setDraft] = useState(null);
   const [studyGuide, setStudyGuide] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [c, a, m] = await Promise.all([
-          getCourse(id),
-          getAssignments(id),
-          getMaterials(id),
-        ]);
-        setCourse(c);
-        setAssignments(a);
-        setMaterials(m);
-      } catch (err) {
-        console.error(err);
-      }
+        const [c, a, m] = await Promise.all([getCourse(id), getAssignments(id), getMaterials(id)]);
+        setCourse(c); setAssignments(a); setMaterials(m);
+      } catch (err) { console.error(err); }
       setLoading(false);
     })();
   }, [id]);
 
-  const loadSteps = async (assignmentId) => {
-    if (steps[assignmentId]) return;
-    try {
-      const s = await getSteps(assignmentId);
-      setSteps((prev) => ({ ...prev, [assignmentId]: s }));
-    } catch {}
+  const loadSteps = async (aid) => {
+    if (steps[aid]) return;
+    try { const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); } catch {}
   };
 
-  const handleExpand = (assignmentId) => {
-    if (expanded === assignmentId) {
-      setExpanded(null);
-    } else {
-      setExpanded(assignmentId);
-      loadSteps(assignmentId);
-    }
+  const handleExpand = (aid) => {
+    if (expanded === aid) { setExpanded(null); } else { setExpanded(aid); loadSteps(aid); }
   };
 
-  const handleGenerateSteps = async (assignmentId) => {
-    setAiLoading(`steps-${assignmentId}`);
-    try {
-      const result = await generateSteps(assignmentId);
-      const s = await getSteps(assignmentId);
-      setSteps((prev) => ({ ...prev, [assignmentId]: s }));
-    } catch (err) { console.error(err); }
+  const handleGenerateSteps = async (aid) => {
+    setAiLoading(`steps-${aid}`);
+    try { await generateSteps(aid); const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); } catch {}
     setAiLoading(null);
   };
 
-  const handleToggleStep = async (stepId, currentDone, assignmentId) => {
+  const handleToggleStep = async (sid, done, aid) => {
     try {
-      await toggleStep(stepId, !currentDone);
-      setSteps((prev) => ({
-        ...prev,
-        [assignmentId]: prev[assignmentId].map((s) =>
-          s.id === stepId ? { ...s, is_done: !currentDone } : s
-        ),
-      }));
+      await toggleStep(sid, !done);
+      setSteps((p) => ({ ...p, [aid]: p[aid].map((s) => s.id === sid ? { ...s, is_done: !done } : s) }));
     } catch {}
   };
 
   const handleParseSyllabus = async () => {
     setAiLoading("parse");
     try {
-      const result = await parseSyllabus(id);
-      // Refresh assignments
-      const a = await getAssignments(id);
-      setAssignments(a);
-      alert(`Parsed ${result.assignments?.length || 0} assignments from syllabus!`);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to parse syllabus");
-    }
+      const r = await parseSyllabus(id);
+      const a = await getAssignments(id); setAssignments(a);
+      alert(`Parsed ${r.assignments?.length || 0} assignments!`);
+    } catch (err) { alert(err.response?.data?.detail || "Failed"); }
     setAiLoading(null);
   };
 
-  const handleGenerateDraft = async (assignmentId) => {
-    setAiLoading(`draft-${assignmentId}`);
-    try {
-      const result = await generateDraft(assignmentId);
-      setDraft(result);
-    } catch (err) { console.error(err); }
+  const handleDraft = async (aid) => {
+    setAiLoading(`draft-${aid}`);
+    try { const r = await generateDraft(aid); setDraft(r); } catch {}
     setAiLoading(null);
   };
 
-  const handleStudyGuide = async () => {
+  const handleStudy = async () => {
     setAiLoading("study");
-    try {
-      const result = await generateStudyGuide(id, "Exam");
-      setStudyGuide(result);
-    } catch (err) { console.error(err); }
+    try { const r = await generateStudyGuide(id, "Exam"); setStudyGuide(r); } catch {}
     setAiLoading(null);
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64 text-neutral-500"><Loader2 className="animate-spin mr-2" size={18} /> Loading...</div>;
-  }
-
-  if (!course) {
-    return <div className="text-neutral-500">Course not found.</div>;
-  }
+  if (loading) return <div className="flex items-center justify-center h-64" style={{ color: "var(--text-muted)" }}><Loader2 className="animate-spin mr-2" size={18} /> Loading...</div>;
+  if (!course) return <div style={{ color: "var(--text-muted)" }}>Course not found.</div>;
 
   const hasSyllabus = materials.some((m) => m.material_type === "syllabus");
 
   return (
     <div className="animate-fade-up">
-      {/* Header */}
-      <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-300 transition mb-4">
-        <ArrowLeft size={14} /> Back to Courses
+      <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm transition mb-4" style={{ color: "var(--text-muted)" }}>
+        <ArrowLeft size={14} /> Back
       </Link>
+
       <div className="flex items-center gap-3 mb-1">
         <div className="w-3 h-3 rounded-full" style={{ background: course.color }} />
         <span className="font-mono text-xs font-bold tracking-wider" style={{ color: course.color }}>{course.code}</span>
       </div>
-      <h1 className="text-2xl font-bold mb-1">{course.name}</h1>
-      <p className="text-sm text-neutral-500 mb-6">{course.professor} · {course.semester}</p>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>{course.name}</h1>
+      <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>{course.professor}</p>
 
-      {/* AI Action Bar */}
+      {/* AI Actions */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {hasSyllabus && (
-          <button
-            onClick={handleParseSyllabus}
-            disabled={aiLoading === "parse"}
-            className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg border border-accent-yellow/30 bg-accent-yellow/10 text-accent-yellow hover:bg-accent-yellow/20 disabled:opacity-50 transition"
-          >
-            {aiLoading === "parse" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            PARSE SYLLABUS
+          <button onClick={handleParseSyllabus} disabled={aiLoading === "parse"}
+            className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg transition disabled:opacity-50"
+            style={{ background: `rgba(var(--accent-rgb), 0.1)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
+            {aiLoading === "parse" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} PARSE SYLLABUS
           </button>
         )}
-        <button
-          onClick={handleStudyGuide}
-          disabled={aiLoading === "study" || materials.length === 0}
-          className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 disabled:opacity-50 transition"
-        >
-          {aiLoading === "study" ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}
-          GENERATE STUDY GUIDE
+        <button onClick={handleStudy} disabled={aiLoading === "study" || materials.length === 0}
+          className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg transition disabled:opacity-50"
+          style={{ background: "rgba(90,240,255,0.1)", color: "var(--accent-secondary)", border: "1px solid var(--accent-secondary)" }}>
+          {aiLoading === "study" ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />} STUDY GUIDE
         </button>
       </div>
 
       {/* Materials */}
       <div className="mb-6">
-        <h2 className="font-mono text-[10px] tracking-[2px] text-neutral-500 font-bold mb-3">
-          UPLOADED MATERIALS ({materials.length})
+        <h2 className="font-mono text-[10px] tracking-[2px] font-bold mb-3" style={{ color: "var(--text-dim)" }}>
+          MATERIALS ({materials.length})
         </h2>
         {materials.length === 0 ? (
-          <div className="text-sm text-neutral-600">
-            No materials uploaded yet. <Link to="/upload" className="text-accent-yellow hover:underline">Upload some →</Link>
-          </div>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>
+            No materials yet. <Link to="/upload" style={{ color: "var(--accent)" }}>Upload some →</Link>
+          </p>
         ) : (
           <div className="flex gap-2 flex-wrap">
             {materials.map((m) => (
-              <div key={m.id} className="flex items-center gap-2 bg-white/[0.03] border border-border rounded-lg px-3 py-2">
-                <FileText size={12} className="text-neutral-500" />
-                <span className="text-xs text-neutral-400">{m.filename}</span>
-                <span className="font-mono text-[9px] tracking-wider text-neutral-600 bg-white/[0.04] px-1.5 py-0.5 rounded">
-                  {m.material_type}
-                </span>
+              <div key={m.id} className="flex items-center gap-2 rounded-lg px-3 py-2"
+                style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
+                <FileText size={12} style={{ color: "var(--text-dim)" }} />
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{m.filename}</span>
+                <span className="font-mono text-[9px] tracking-wider px-1.5 py-0.5 rounded"
+                  style={{ background: "var(--bg-card)", color: "var(--text-dim)" }}>{m.material_type}</span>
               </div>
             ))}
           </div>
@@ -181,128 +128,112 @@ export default function CoursePage() {
       </div>
 
       {/* Assignments */}
-      <div>
-        <h2 className="font-mono text-[10px] tracking-[2px] text-neutral-500 font-bold mb-3">
-          ASSIGNMENTS ({assignments.length})
-        </h2>
-        {assignments.length === 0 ? (
-          <div className="text-sm text-neutral-600">No assignments yet. Parse a syllabus or add manually.</div>
-        ) : (
-          <div className="space-y-2">
-            {assignments.map((a) => {
-              const isExpanded = expanded === a.id;
-              const aSteps = steps[a.id] || [];
-              const stepsDone = aSteps.filter((s) => s.is_done).length;
-              return (
-                <div key={a.id} className="bg-bg-card border border-border rounded-xl overflow-hidden">
-                  {/* Assignment header */}
-                  <button
-                    onClick={() => handleExpand(a.id)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-neutral-200 truncate">{a.title}</div>
-                      <div className="flex items-center gap-3 mt-1">
-                        {a.due_date && (
-                          <span className="font-mono text-[11px] text-neutral-600">
-                            Due {new Date(a.due_date).toLocaleDateString()}
-                          </span>
-                        )}
-                        {a.weight > 0 && (
-                          <span className="font-mono text-[11px] text-neutral-600">{a.weight}%</span>
-                        )}
-                        {a.step_count > 0 && (
-                          <span className="font-mono text-[11px] text-neutral-500">{a.steps_done}/{a.step_count} steps</span>
-                        )}
-                      </div>
+      <h2 className="font-mono text-[10px] tracking-[2px] font-bold mb-3" style={{ color: "var(--text-dim)" }}>
+        ASSIGNMENTS ({assignments.length})
+      </h2>
+      {assignments.length === 0 ? (
+        <div className="rounded-xl p-8 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>No assignments yet. Parse a syllabus or add manually.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {assignments.map((a) => {
+            const isExp = expanded === a.id;
+            const aSteps = steps[a.id] || [];
+            return (
+              <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <button onClick={() => handleExpand(a.id)}
+                  className="w-full flex items-center justify-between p-4 text-left transition"
+                  style={{ color: "var(--text)" }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{a.title}</div>
+                    <div className="flex items-center gap-3 mt-1">
+                      {a.due_date && <span className="font-mono text-[11px]" style={{ color: "var(--text-dim)" }}>Due {new Date(a.due_date).toLocaleDateString()}</span>}
+                      {a.weight > 0 && <span className="font-mono text-[11px]" style={{ color: "var(--text-dim)" }}>{a.weight}%</span>}
                     </div>
-                    {isExpanded ? <ChevronUp size={14} className="text-neutral-500" /> : <ChevronDown size={14} className="text-neutral-500" />}
-                  </button>
+                  </div>
+                  {isExp ? <ChevronUp size={14} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={14} style={{ color: "var(--text-dim)" }} />}
+                </button>
 
-                  {/* Expanded content */}
-                  {isExpanded && (
-                    <div className="border-t border-border p-4">
-                      {a.description && (
-                        <p className="text-xs text-neutral-500 mb-3">{a.description}</p>
-                      )}
+                {isExp && (
+                  <div className="p-4" style={{ borderTop: "1px solid var(--border)" }}>
+                    {a.description && <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>{a.description}</p>}
 
-                      {/* AI buttons */}
-                      <div className="flex gap-2 mb-4">
-                        <button
-                          onClick={() => handleGenerateSteps(a.id)}
-                          disabled={aiLoading === `steps-${a.id}`}
-                          className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg border border-accent-yellow/30 bg-accent-yellow/8 text-accent-yellow hover:bg-accent-yellow/15 disabled:opacity-50 transition"
-                        >
-                          {aiLoading === `steps-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-                          GENERATE STEPS
-                        </button>
-                        <button
-                          onClick={() => handleGenerateDraft(a.id)}
-                          disabled={aiLoading === `draft-${a.id}`}
-                          className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg border border-accent-pink/30 bg-accent-pink/8 text-accent-pink hover:bg-accent-pink/15 disabled:opacity-50 transition"
-                        >
-                          {aiLoading === `draft-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Pencil size={10} />}
-                          GENERATE DRAFT
-                        </button>
-                      </div>
+                    <div className="flex gap-2 mb-4">
+                      <button onClick={() => handleGenerateSteps(a.id)} disabled={aiLoading === `steps-${a.id}`}
+                        className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg transition disabled:opacity-50"
+                        style={{ background: `rgba(var(--accent-rgb), 0.08)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
+                        {aiLoading === `steps-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} GENERATE STEPS
+                      </button>
+                      <button onClick={() => handleDraft(a.id)} disabled={aiLoading === `draft-${a.id}`}
+                        className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg transition disabled:opacity-50"
+                        style={{ background: "rgba(255,90,138,0.08)", color: "var(--accent-pink)", border: "1px solid var(--accent-pink)" }}>
+                        {aiLoading === `draft-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Pencil size={10} />} GENERATE DRAFT
+                      </button>
+                    </div>
 
-                      {/* Steps list */}
-                      {aSteps.length > 0 && (
-                        <div className="space-y-1.5">
-                          {aSteps.map((s) => (
-                            <div
-                              key={s.id}
-                              onClick={() => handleToggleStep(s.id, s.is_done, a.id)}
-                              className="flex items-start gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/[0.02] transition"
-                            >
-                              <div className={`w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center border transition
-                                ${s.is_done ? "bg-accent-yellow border-accent-yellow" : "border-neutral-700"}`}
-                              >
-                                {s.is_done && <Check size={10} className="text-black" strokeWidth={3} />}
-                              </div>
-                              <span className={`text-[13px] leading-snug transition ${s.is_done ? "text-neutral-600 line-through" : "text-neutral-300"}`}>
-                                {s.text}
-                              </span>
-                              <span className="font-mono text-[9px] text-neutral-700 ml-auto flex-shrink-0">{s.estimated_minutes}m</span>
+                    {aSteps.length > 0 && (
+                      <div className="space-y-1">
+                        {aSteps.map((s) => (
+                          <div key={s.id} onClick={() => handleToggleStep(s.id, s.is_done, a.id)}
+                            className="flex items-start gap-3 py-2 px-2 rounded-lg cursor-pointer transition"
+                            style={{ background: "transparent" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                            <div className="w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center transition"
+                              style={{
+                                background: s.is_done ? "var(--accent)" : "transparent",
+                                border: s.is_done ? "none" : "1.5px solid var(--border-light)",
+                              }}>
+                              {s.is_done && <Check size={10} style={{ color: "var(--bg)" }} strokeWidth={3} />}
                             </div>
-                          ))}
-                          <div className="text-xs text-neutral-600 font-mono mt-2 pt-2 border-t border-border">
-                            {stepsDone}/{aSteps.length} complete · ~{aSteps.filter(s => !s.is_done).reduce((sum, s) => sum + s.estimated_minutes, 0)}m remaining
+                            <span className="text-[13px] leading-snug flex-1"
+                              style={{ color: s.is_done ? "var(--text-dim)" : "var(--text)", textDecoration: s.is_done ? "line-through" : "none" }}>
+                              {s.text}
+                            </span>
+                            <span className="font-mono text-[9px] ml-auto flex-shrink-0" style={{ color: "var(--text-dim)" }}>{s.estimated_minutes}m</span>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Draft Modal */}
       {draft && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setDraft(null)}>
-          <div className="bg-bg-card border border-border rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">Generated Draft</h2>
-            <pre className="text-sm text-neutral-300 whitespace-pre-wrap font-sans leading-relaxed">{draft.draft}</pre>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--modal-overlay)" }} onClick={() => setDraft(null)}>
+          <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 animate-fade-up"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Generated Draft</h2>
+              <button onClick={() => setDraft(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>{draft.draft}</pre>
             {draft.notes && (
-              <div className="mt-4 p-3 bg-accent-yellow/5 border border-accent-yellow/20 rounded-lg text-xs text-neutral-400">
-                <strong className="text-accent-yellow">Notes:</strong> {draft.notes}
+              <div className="mt-4 p-3 rounded-lg text-xs"
+                style={{ background: `rgba(var(--accent-rgb), 0.05)`, border: `1px solid var(--accent)`, color: "var(--text-muted)" }}>
+                <strong style={{ color: "var(--accent)" }}>Notes:</strong> {draft.notes}
               </div>
             )}
-            <button onClick={() => setDraft(null)} className="mt-4 font-mono text-xs text-neutral-500 hover:text-neutral-300">Close</button>
           </div>
         </div>
       )}
 
       {/* Study Guide Modal */}
       {studyGuide && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setStudyGuide(null)}>
-          <div className="bg-bg-card border border-border rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4">{studyGuide.title}</h2>
-            <pre className="text-sm text-neutral-300 whitespace-pre-wrap font-sans leading-relaxed">{studyGuide.content}</pre>
-            <button onClick={() => setStudyGuide(null)} className="mt-4 font-mono text-xs text-neutral-500 hover:text-neutral-300">Close</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--modal-overlay)" }} onClick={() => setStudyGuide(null)}>
+          <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 animate-fade-up"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{studyGuide.title}</h2>
+              <button onClick={() => setStudyGuide(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>{studyGuide.content}</pre>
           </div>
         </div>
       )}

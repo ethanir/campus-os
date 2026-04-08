@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Plus, ChevronRight, X, BookOpen, Upload, Sparkles, Camera, Loader2, Check } from "lucide-react";
-import { getCourses, createCourse, importFromScreenshot } from "../api/client";
+import { Plus, ChevronRight, X, BookOpen, Upload, Sparkles, Camera, Loader2, Check, Trash2 } from "lucide-react";
+import { getCourses, createCourse, importFromScreenshot, deleteCourse } from "../api/client";
 
 const COLORS = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"];
 
@@ -226,10 +226,10 @@ export default function CoursesPage() {
       ) : (
         <div className="space-y-3">
           {courses.map((c, i) => (
-            <Link key={c.id} to={`/courses/${c.id}`}
+            <div key={c.id}
               className="flex items-center justify-between rounded-xl p-5 transition group animate-fade-up"
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)", animationDelay: `${i * 50}ms` }}>
-              <div className="flex items-center gap-4">
+              <Link to={`/courses/${c.id}`} className="flex items-center gap-4 flex-1 min-w-0" style={{ textDecoration: "none" }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold font-mono"
                   style={{ background: c.color + "18", color: c.color }}>
                   {c.code.replace(/[^A-Z0-9]/g, "").slice(0, 3)}
@@ -240,9 +240,22 @@ export default function CoursesPage() {
                     {c.professor || "No professor"} · {c.assignment_count} tasks · {c.material_count} uploads
                   </div>
                 </div>
+              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`Delete ${c.code}?`)) return;
+                    try { await deleteCourse(c.id); setCourses((prev) => prev.filter((x) => x.id !== c.id)); } catch {}
+                  }}
+                  className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                  style={{ color: "var(--accent-red)" }}
+                  title="Delete course">
+                  <Trash2 size={14} />
+                </button>
+                <ChevronRight size={16} style={{ color: "var(--text-dim)" }} />
               </div>
-              <ChevronRight size={16} style={{ color: "var(--text-dim)" }} />
-            </Link>
+            </div>
           ))}
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
-const THEMES = ["dark", "light", "neon"];
-const THEME_LABELS = { dark: "Dark", light: "Light", neon: "Neon" };
+const THEMES = ["dark", "light", "code"];
+const THEME_LABELS = { dark: "Dark", light: "Light", code: "Code" };
 
 export function useTheme() {
   const [theme, setTheme] = useState(() => localStorage.getItem("campus-os-theme") || "dark");
@@ -11,10 +11,5 @@ export function useTheme() {
     localStorage.setItem("campus-os-theme", theme);
   }, [theme]);
 
-  const cycle = () => {
-    const i = THEMES.indexOf(theme);
-    setTheme(THEMES[(i + 1) % THEMES.length]);
-  };
-
-  return { theme, setTheme, cycle, label: THEME_LABELS[theme], THEMES, THEME_LABELS };
+  return { theme, setTheme, label: THEME_LABELS[theme], THEMES, THEME_LABELS };
 }

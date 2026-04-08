@@ -39,14 +39,35 @@ export default function CoursesPage() {
         </button>
       </div>
 
-      {/* Modal */}
+      {/* Modal Overlay */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "var(--modal-overlay)" }}
-          onClick={() => setShowForm(false)}>
-          <div className="w-full max-w-md rounded-2xl p-6 animate-fade-up"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
-            onClick={(e) => e.stopPropagation()}>
+        <div
+          onClick={() => setShowForm(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            background: "var(--modal-overlay)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "24px",
+            }}>
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>New Course</h2>
               <button onClick={() => setShowForm(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
@@ -59,7 +80,8 @@ export default function CoursesPage() {
                 { key: "professor", label: "PROFESSOR", placeholder: "Dr. Chen" },
               ].map(({ key, label, placeholder }) => (
                 <div key={key}>
-                  <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>{label}</label>
+                  <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5"
+                    style={{ color: "var(--text-dim)" }}>{label}</label>
                   <input
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
@@ -76,7 +98,8 @@ export default function CoursesPage() {
                 </div>
               ))}
               <div>
-                <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>COLOR</label>
+                <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5"
+                  style={{ color: "var(--text-dim)" }}>COLOR</label>
                 <div className="flex gap-2">
                   {COLORS.map((c) => (
                     <button key={c} onClick={() => setForm({ ...form, color: c })}

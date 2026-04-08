@@ -31,6 +31,7 @@ export default function CoursesPage() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const importInput = useRef(null);
 
   useEffect(() => { getCourses().then(setCourses).catch(console.error); }, []);
@@ -243,10 +244,9 @@ export default function CoursesPage() {
               </Link>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    if (!confirm(`Delete ${c.code}?`)) return;
-                    try { await deleteCourse(c.id); setCourses((prev) => prev.filter((x) => x.id !== c.id)); } catch {}
+                    setDeleteTarget(c);
                   }}
                   className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
                   style={{ color: "var(--accent-red)" }}
@@ -258,6 +258,31 @@ export default function CoursesPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <Modal onClose={() => setDeleteTarget(null)}>
+          <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>Delete Course</h2>
+          <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
+            Are you sure you want to delete <strong style={{ color: "var(--text)" }}>{deleteTarget.code}</strong>? This will remove all its assignments and materials.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setDeleteTarget(null)}
+              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
+              style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+              CANCEL
+            </button>
+            <button onClick={async () => {
+              try { await deleteCourse(deleteTarget.id); setCourses((prev) => prev.filter((x) => x.id !== deleteTarget.id)); } catch {}
+              setDeleteTarget(null);
+            }}
+              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
+              style={{ background: "var(--accent-red)", color: "#fff" }}>
+              DELETE
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

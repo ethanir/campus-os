@@ -44,6 +44,10 @@ export const toggleStep = (stepId, isDone) =>
 // ── Drafts ─────────────────────────────────────────────
 export const generateDraft = (assignmentId) =>
   api.post(`/assignments/${assignmentId}/draft`).then((r) => r.data);
+export const generateHomeworkTurnin = (assignmentId) =>
+  api.post(`/assignments/${assignmentId}/homework-turnin`).then((r) => r.data);
+export const generateHomeworkStudy = (assignmentId) =>
+  api.post(`/assignments/${assignmentId}/homework-study`).then((r) => r.data);
 
 // ── Planner ────────────────────────────────────────────
 export const getWeeklyPlan = () => api.get("/plan/weekly").then((r) => r.data);
@@ -53,7 +57,10 @@ export const generateWeeklyPlan = () =>
 // ── Study Guides ───────────────────────────────────────
 export const getStudyGuides = (courseId) =>
   api.get(`/courses/${courseId}/study-guides`).then((r) => r.data);
-export const generateStudyGuide = (courseId, examTitle) =>
-  api.post(`/courses/${courseId}/study-guide?exam_title=${encodeURIComponent(examTitle)}`).then((r) => r.data);
+export const generateStudyGuide = (courseId, examTitle, materialIds = []) => {
+  const params = new URLSearchParams({ exam_title: examTitle });
+  if (materialIds.length > 0) params.append("material_ids", materialIds.join(","));
+  return api.post(`/courses/${courseId}/study-guide?${params}`).then((r) => r.data);
+};
 
 export default api;

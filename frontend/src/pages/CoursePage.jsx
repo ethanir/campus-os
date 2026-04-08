@@ -1,7 +1,32 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen, ChevronDown, ChevronUp, Pencil, X } from "lucide-react";
-import { getCourse, getAssignments, getMaterials, getSteps, generateSteps, toggleStep, parseSyllabus, generateDraft, generateStudyGuide } from "../api/client";
+import {
+  ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
+  ChevronDown, ChevronUp, Pencil, X, GraduationCap, FileCheck, Eye,
+} from "lucide-react";
+import {
+  getCourse, getAssignments, getMaterials, getSteps,
+  generateSteps, toggleStep, parseSyllabus, generateDraft,
+  generateStudyGuide, generateHomeworkTurnin, generateHomeworkStudy,
+} from "../api/client";
+
+function Modal({ onClose, wide, children }) {
+  return createPortal(
+    <div onClick={onClose} style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999,
+      background: "var(--modal-overlay)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px",
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: wide ? "720px" : "480px", maxHeight: "85vh", overflowY: "auto",
+        background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px",
+      }}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 export default function CoursePage() {
   const { id } = useParams();
@@ -12,14 +37,19 @@ export default function CoursePage() {
   const [steps, setSteps] = useState({});
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(null);
-  const [draft, setDraft] = useState(null);
-  const [studyGuide, setStudyGuide] = useState(null);
+
+  // Modals
+  const [resultModal, setResultModal] = useState(null); // {title, content, notes?}
+  const [showStudyGuideSetup, setShowStudyGuideSetup] = useState(false);
+  const [studyExamTitle, setStudyExamTitle] = useState("Midterm");
+  const [selectedMaterials, setSelectedMaterials] = useState([]);
 
   useEffect(() => {
     (async () => {
       try {
         const [c, a, m] = await Promise.all([getCourse(id), getAssignments(id), getMaterials(id)]);
         setCourse(c); setAssignments(a); setMaterials(m);
+        setSelectedMaterials(m.map((mat) => mat.id)); // Select all by default
       } catch (err) { console.error(err); }
       setLoading(false);
     })();
@@ -52,21 +82,52 @@ export default function CoursePage() {
     try {
       const r = await parseSyllabus(id);
       const a = await getAssignments(id); setAssignments(a);
-      alert(`Parsed ${r.assignments?.length || 0} assignments!`);
-    } catch (err) { alert(err.response?.data?.detail || "Failed"); }
+      setResultModal({ title: "Syllabus Parsed", content: `Successfully extracted ${r.assignments?.length || 0} assignments with deadlines and grading weights.` });
+    } catch (err) {
+      setResultModal({ title: "Error", content: err.response?.data?.detail || "Failed to parse syllabus" });
+    }
     setAiLoading(null);
   };
 
-  const handleDraft = async (aid) => {
-    setAiLoading(`draft-${aid}`);
-    try { const r = await generateDraft(aid); setDraft(r); } catch {}
+  // Homework - Turn-in Ready
+  const handleHomeworkTurnin = async (aid) => {
+    setAiLoading(`turnin-${aid}`);
+    try {
+      const r = await generateHomeworkTurnin(aid);
+      setResultModal({ title: "Turn-in Ready Submission", content: r.submission, notes: r.notes });
+    } catch (err) { setResultModal({ title: "Error", content: "Failed to generate." }); }
     setAiLoading(null);
   };
 
-  const handleStudy = async () => {
-    setAiLoading("study");
-    try { const r = await generateStudyGuide(id, "Exam"); setStudyGuide(r); } catch {}
+  // Homework - Study Version
+  const handleHomeworkStudy = async (aid) => {
+    setAiLoading(`study-${aid}`);
+    try {
+      const r = await generateHomeworkStudy(aid);
+      setResultModal({
+        title: "Study Version (Detailed Explanations)",
+        content: r.study_version,
+        notes: r.key_concepts?.length ? "Key concepts: " + r.key_concepts.join(", ") : "",
+      });
+    } catch (err) { setResultModal({ title: "Error", content: "Failed to generate." }); }
     setAiLoading(null);
+  };
+
+  // Study Guide
+  const handleStudyGuide = async () => {
+    setShowStudyGuideSetup(false);
+    setAiLoading("study-guide");
+    try {
+      const r = await generateStudyGuide(id, studyExamTitle, selectedMaterials);
+      setResultModal({ title: r.title || `Study Guide: ${studyExamTitle}`, content: r.content });
+    } catch (err) { setResultModal({ title: "Error", content: "Failed to generate study guide." }); }
+    setAiLoading(null);
+  };
+
+  const toggleMaterial = (matId) => {
+    setSelectedMaterials((prev) =>
+      prev.includes(matId) ? prev.filter((x) => x !== matId) : [...prev, matId]
+    );
   };
 
   if (loading) return <div className="flex items-center justify-center h-64" style={{ color: "var(--text-muted)" }}><Loader2 className="animate-spin mr-2" size={18} /> Loading...</div>;
@@ -96,10 +157,11 @@ export default function CoursePage() {
             {aiLoading === "parse" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} PARSE SYLLABUS
           </button>
         )}
-        <button onClick={handleStudy} disabled={aiLoading === "study" || materials.length === 0}
+        <button onClick={() => setShowStudyGuideSetup(true)} disabled={aiLoading === "study-guide" || materials.length === 0}
           className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg transition disabled:opacity-50"
           style={{ background: "rgba(90,240,255,0.1)", color: "var(--accent-secondary)", border: "1px solid var(--accent-secondary)" }}>
-          {aiLoading === "study" ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />} STUDY GUIDE
+          {aiLoading === "study-guide" ? <Loader2 size={12} className="animate-spin" /> : <GraduationCap size={12} />}
+          {aiLoading === "study-guide" ? "GENERATING..." : "STUDY GUIDE"}
         </button>
       </div>
 
@@ -143,8 +205,7 @@ export default function CoursePage() {
             return (
               <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                 <button onClick={() => handleExpand(a.id)}
-                  className="w-full flex items-center justify-between p-4 text-left transition"
-                  style={{ color: "var(--text)" }}>
+                  className="w-full flex items-center justify-between p-4 text-left transition" style={{ color: "var(--text)" }}>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{a.title}</div>
                     <div className="flex items-center gap-3 mt-1">
@@ -159,32 +220,35 @@ export default function CoursePage() {
                   <div className="p-4" style={{ borderTop: "1px solid var(--border)" }}>
                     {a.description && <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>{a.description}</p>}
 
-                    <div className="flex gap-2 mb-4">
-                      <button onClick={() => handleGenerateSteps(a.id)} disabled={aiLoading === `steps-${a.id}`}
+                    {/* AI Buttons */}
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      <button onClick={() => handleGenerateSteps(a.id)} disabled={!!aiLoading}
                         className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg transition disabled:opacity-50"
                         style={{ background: `rgba(var(--accent-rgb), 0.08)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
-                        {aiLoading === `steps-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} GENERATE STEPS
+                        {aiLoading === `steps-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} STEPS
                       </button>
-                      <button onClick={() => handleDraft(a.id)} disabled={aiLoading === `draft-${a.id}`}
+                      <button onClick={() => handleHomeworkTurnin(a.id)} disabled={!!aiLoading}
                         className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg transition disabled:opacity-50"
-                        style={{ background: "rgba(255,90,138,0.08)", color: "var(--accent-pink)", border: "1px solid var(--accent-pink)" }}>
-                        {aiLoading === `draft-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Pencil size={10} />} GENERATE DRAFT
+                        style={{ background: "rgba(90,255,140,0.08)", color: "var(--accent-green)", border: "1px solid var(--accent-green)" }}>
+                        {aiLoading === `turnin-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <FileCheck size={10} />} TURN-IN READY
+                      </button>
+                      <button onClick={() => handleHomeworkStudy(a.id)} disabled={!!aiLoading}
+                        className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-3 py-2 rounded-lg transition disabled:opacity-50"
+                        style={{ background: "rgba(90,240,255,0.08)", color: "var(--accent-secondary)", border: "1px solid var(--accent-secondary)" }}>
+                        {aiLoading === `study-${a.id}` ? <Loader2 size={10} className="animate-spin" /> : <Eye size={10} />} STUDY VERSION
                       </button>
                     </div>
 
+                    {/* Steps list */}
                     {aSteps.length > 0 && (
                       <div className="space-y-1">
                         {aSteps.map((s) => (
                           <div key={s.id} onClick={() => handleToggleStep(s.id, s.is_done, a.id)}
                             className="flex items-start gap-3 py-2 px-2 rounded-lg cursor-pointer transition"
-                            style={{ background: "transparent" }}
                             onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
                             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                             <div className="w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center transition"
-                              style={{
-                                background: s.is_done ? "var(--accent)" : "transparent",
-                                border: s.is_done ? "none" : "1.5px solid var(--border-light)",
-                              }}>
+                              style={{ background: s.is_done ? "var(--accent)" : "transparent", border: s.is_done ? "none" : "1.5px solid var(--border-light)" }}>
                               {s.is_done && <Check size={10} style={{ color: "var(--bg)" }} strokeWidth={3} />}
                             </div>
                             <span className="text-[13px] leading-snug flex-1"
@@ -204,38 +268,79 @@ export default function CoursePage() {
         </div>
       )}
 
-      {/* Draft Modal */}
-      {draft && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--modal-overlay)" }} onClick={() => setDraft(null)}>
-          <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 animate-fade-up"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Generated Draft</h2>
-              <button onClick={() => setDraft(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
-            </div>
-            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>{draft.draft}</pre>
-            {draft.notes && (
-              <div className="mt-4 p-3 rounded-lg text-xs"
-                style={{ background: `rgba(var(--accent-rgb), 0.05)`, border: `1px solid var(--accent)`, color: "var(--text-muted)" }}>
-                <strong style={{ color: "var(--accent)" }}>Notes:</strong> {draft.notes}
-              </div>
-            )}
+      {/* Study Guide Setup Modal */}
+      {showStudyGuideSetup && (
+        <Modal onClose={() => setShowStudyGuideSetup(false)}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Generate Study Guide</h2>
+            <button onClick={() => setShowStudyGuideSetup(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
           </div>
-        </div>
+
+          <div className="mb-4">
+            <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>EXAM NAME</label>
+            <input value={studyExamTitle} onChange={(e) => setStudyExamTitle(e.target.value)}
+              placeholder="Midterm 1, Final Exam, etc."
+              className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
+              style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }} />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="font-mono text-[10px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>
+                SELECT MATERIALS ({selectedMaterials.length}/{materials.length})
+              </label>
+              <button onClick={() => setSelectedMaterials(
+                selectedMaterials.length === materials.length ? [] : materials.map((m) => m.id)
+              )} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
+                {selectedMaterials.length === materials.length ? "DESELECT ALL" : "SELECT ALL"}
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {materials.map((m) => {
+                const selected = selectedMaterials.includes(m.id);
+                return (
+                  <div key={m.id} onClick={() => toggleMaterial(m.id)}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition"
+                    style={{ background: selected ? `rgba(var(--accent-rgb), 0.06)` : "transparent", border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}` }}>
+                    <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
+                      style={{ background: selected ? "var(--accent)" : "transparent", border: selected ? "none" : "1.5px solid var(--border-light)" }}>
+                      {selected && <Check size={10} style={{ color: "var(--bg)" }} strokeWidth={3} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs truncate" style={{ color: "var(--text)" }}>{m.filename}</div>
+                      <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>{m.material_type}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={handleStudyGuide} disabled={selectedMaterials.length === 0}
+            className="w-full font-mono text-xs font-bold tracking-wider py-3 rounded-lg transition disabled:opacity-30"
+            style={{ background: "var(--accent)", color: "var(--bg)" }}>
+            GENERATE STUDY GUIDE
+          </button>
+        </Modal>
       )}
 
-      {/* Study Guide Modal */}
-      {studyGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--modal-overlay)" }} onClick={() => setStudyGuide(null)}>
-          <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 animate-fade-up"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{studyGuide.title}</h2>
-              <button onClick={() => setStudyGuide(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
-            </div>
-            <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>{studyGuide.content}</pre>
+      {/* Result Modal (study guide, homework, etc.) */}
+      {resultModal && (
+        <Modal onClose={() => setResultModal(null)} wide>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{resultModal.title}</h2>
+            <button onClick={() => setResultModal(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
           </div>
-        </div>
+          <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>
+            {resultModal.content}
+          </pre>
+          {resultModal.notes && (
+            <div className="mt-4 p-3 rounded-lg text-xs"
+              style={{ background: `rgba(var(--accent-rgb), 0.05)`, border: `1px solid var(--accent)`, color: "var(--text-muted)" }}>
+              <strong style={{ color: "var(--accent)" }}>Notes:</strong> {resultModal.notes}
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );

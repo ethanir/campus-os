@@ -9,7 +9,7 @@ from app.schemas.schemas import (
     TaskStepResponse,
     TaskStepToggle,
 )
-from app.services.ai_service import generate_task_steps, generate_draft
+from app.services.ai_service import generate_task_steps, generate_draft, generate_homework_turnin, generate_homework_study
 
 router = APIRouter(prefix="/api", tags=["assignments"])
 
@@ -113,6 +113,16 @@ def toggle_step(step_id: int, data: TaskStepToggle, db: Session = Depends(get_db
 
 # ── Draft Generation ────────────────────────────────────
 
+def _gather_course_context(db, course_id):
+    """Gather ALL materials for a course as context."""
+    materials = db.query(Material).filter(Material.course_id == course_id).all()
+    return "\n\n".join(
+        f"[{m.material_type.value}: {m.filename}]\n{m.extracted_text}"
+        for m in materials
+        if m.extracted_text
+    )
+
+
 @router.post("/assignments/{assignment_id}/draft")
 def create_draft(assignment_id: int, db: Session = Depends(get_db)):
     """Generate an AI first draft for an assignment."""
@@ -120,14 +130,34 @@ def create_draft(assignment_id: int, db: Session = Depends(get_db)):
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
-    materials = db.query(Material).filter(Material.course_id == assignment.course_id).all()
-    context = "\n\n".join(
-        f"[{m.material_type.value}: {m.filename}]\n{m.extracted_text[:3000]}"
-        for m in materials
-        if m.extracted_text
-    )
-
+    context = _gather_course_context(db, assignment.course_id)
     result = generate_draft(assignment.title, assignment.description, context)
+    return result
+
+
+# ── Homework Completion ─────────────────────────────────
+
+@router.post("/assignments/{assignment_id}/homework-turnin")
+def create_homework_turnin(assignment_id: int, db: Session = Depends(get_db)):
+    """Generate a turn-in ready homework submission using all course materials."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    context = _gather_course_context(db, assignment.course_id)
+    result = generate_homework_turnin(assignment.title, assignment.description, context)
+    return result
+
+
+@router.post("/assignments/{assignment_id}/homework-study")
+def create_homework_study(assignment_id: int, db: Session = Depends(get_db)):
+    """Generate a detailed study version of the homework with step-by-step explanations."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    context = _gather_course_context(db, assignment.course_id)
+    result = generate_homework_study(assignment.title, assignment.description, context)
     return result
 
 

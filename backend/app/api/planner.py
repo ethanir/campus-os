@@ -98,15 +98,26 @@ def list_study_guides(course_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/courses/{course_id}/study-guide")
-def create_study_guide(course_id: int, exam_title: str = "Midterm", db: Session = Depends(get_db)):
-    """Generate an AI study guide from all course materials."""
+def create_study_guide(
+    course_id: int,
+    exam_title: str = "Midterm",
+    material_ids: str = "",
+    db: Session = Depends(get_db),
+):
+    """Generate an AI study guide. Optionally filter by material IDs (comma-separated)."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    materials = db.query(Material).filter(Material.course_id == course_id).all()
+    # Filter materials if IDs provided
+    if material_ids:
+        ids = [int(x.strip()) for x in material_ids.split(",") if x.strip().isdigit()]
+        materials = db.query(Material).filter(Material.id.in_(ids), Material.course_id == course_id).all()
+    else:
+        materials = db.query(Material).filter(Material.course_id == course_id).all()
+
     if not materials:
-        raise HTTPException(status_code=400, detail="No materials uploaded for this course.")
+        raise HTTPException(status_code=400, detail="No materials selected.")
 
     combined_text = "\n\n".join(
         f"[{m.material_type.value}: {m.filename}]\n{m.extracted_text}"

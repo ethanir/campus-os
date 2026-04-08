@@ -94,24 +94,36 @@ RELEVANT COURSE MATERIALS:
 
 # ── Study Guide Generation ──────────────────────────────
 
-STUDY_GUIDE_SYSTEM = """You are an expert tutor creating an exam study guide.
-Given lecture slides, textbook content, and assignment context, create a focused study guide
-that tells the student EXACTLY what matters for the exam.
+STUDY_GUIDE_SYSTEM = """You are the most thorough, detail-obsessed tutor alive. A student is about to take an exam and has uploaded ALL their course materials to you — lecture slides, textbook chapters, past assignments, announcements, everything.
 
-Structure the guide as:
-1. Key Topics (ranked by likely exam importance)
-2. Must-Know Definitions & Theorems
-3. Common Problem Types & How to Solve Them
-4. Practice Problems (with solutions)
-5. Common Mistakes to Avoid
+Your job is to create the ULTIMATE study guide. This is not a summary. This is a comprehensive, detailed guide that covers EVERYTHING the student needs to know.
 
-Be specific. Reference actual content from the materials. Don't be generic.
+Rules:
+- Go through EVERY SINGLE piece of material provided. Do not skip anything.
+- For every theorem, definition, algorithm, or concept mentioned: explain it, give the formal definition, show when/how it's used, and provide an example.
+- For every proof technique used in lectures or assignments: explain the technique, show the pattern, and give a template the student can follow.
+- For every type of problem that appeared in homework or slides: show how to solve it step by step.
+- Include ALL formulas, ALL definitions, ALL key terms.
+- If announcements mention "focus on X" or "this will be on the exam" — highlight those prominently.
+- Create practice problems that mirror what the professor has assigned.
+- Include common mistakes and how to avoid them.
+- Organize by topic, not by lecture number.
+
+Structure:
+1. EXAM OVERVIEW — What topics are covered, format expectations
+2. KEY CONCEPTS & DEFINITIONS — Every single one, with explanations
+3. THEOREMS & PROOFS — Full statements, proof techniques used, when to apply them
+4. PROBLEM TYPES & HOW TO SOLVE THEM — Step-by-step for each type
+5. WORKED EXAMPLES — Detailed solutions to representative problems
+6. PRACTICE PROBLEMS — With full solutions
+7. COMMON MISTAKES & PITFALLS
+8. QUICK REFERENCE — Formulas, definitions, key facts in condensed form
 
 Return JSON:
 {
   "title": "Study Guide: ...",
   "topics": ["topic1", "topic2", ...],
-  "content": "Full markdown study guide content here"
+  "content": "Full markdown study guide content — be EXTREMELY thorough and detailed"
 }"""
 
 
@@ -120,19 +132,96 @@ def generate_study_guide(
     exam_title: str,
     materials_text: str,
 ) -> dict:
-    """Generate an exam study guide from course materials."""
-    prompt = f"""Create an exam study guide for:
+    """Generate a comprehensive exam study guide from course materials."""
+    prompt = f"""Create the most thorough, comprehensive study guide possible for:
 
 COURSE: {course_name}
 EXAM: {exam_title}
 
-COURSE MATERIALS (lecture slides, textbook excerpts, past assignments):
-{materials_text[:20000]}"""
+Go through EVERY piece of material below. Do not skip or summarize — cover everything in detail. The student is counting on this to be complete.
 
-    return call_claude_json(STUDY_GUIDE_SYSTEM, prompt)
+COURSE MATERIALS:
+{materials_text[:100000]}"""
+
+    return call_claude_json(STUDY_GUIDE_SYSTEM, prompt, max_tokens=8192)
 
 
-# ── Draft Generation ────────────────────────────────────
+# ── Homework Completion ─────────────────────────────────
+
+HOMEWORK_TURNIN_SYSTEM = """You are an expert student completing a homework assignment. You have access to all the course materials — lecture slides, textbook chapters, and past work.
+
+Your job is to produce a TURN-IN READY submission that would earn 100%. This means:
+- Follow the professor's instructions EXACTLY.
+- Use the notation, terminology, and methods taught in class (from the provided materials).
+- For proofs: use the proof techniques from lectures. Structure them formally with clear statements, assumptions, and conclusions. Use the exact format the professor expects.
+- For coding: write clean, well-documented code that follows class conventions.
+- For written answers: be precise, thorough, and match the academic tone expected.
+- For math: show all work, use proper notation as taught in the course.
+- This should look like it was written by a top student in the class who attended every lecture.
+
+Do NOT use techniques or knowledge not covered in the provided course materials unless absolutely necessary.
+
+Return JSON:
+{
+  "submission": "The complete, ready-to-submit homework in markdown. Every problem answered completely.",
+  "notes": "Brief notes about any assumptions or areas where the student should double-check."
+}"""
+
+
+HOMEWORK_STUDY_SYSTEM = """You are an expert tutor helping a student LEARN by working through their homework. You have access to all the course materials — lecture slides, textbook chapters, and past work.
+
+Your job is to produce a DETAILED LEARNING VERSION of the homework. For every single problem:
+1. Start by explaining what the problem is asking in plain English.
+2. Identify which concept/theorem/technique from the course applies and WHY.
+3. Show the complete solution step by step, explaining every single step — why you're doing it, what rule you're applying, what would happen if you did something different.
+4. After solving, explain the intuition — why does this answer make sense?
+5. Point out common mistakes students make on this type of problem.
+6. If relevant, connect it to other topics in the course.
+
+This should read like a patient tutor sitting next to the student, walking them through everything. No skipping steps. No "it's obvious that..." — explain EVERYTHING.
+
+Return JSON:
+{
+  "study_version": "The complete homework with detailed explanations for every problem in markdown.",
+  "key_concepts": ["List of key concepts the student should make sure they understand"]
+}"""
+
+
+def generate_homework_turnin(
+    assignment_title: str,
+    assignment_description: str,
+    course_materials_context: str = "",
+) -> dict:
+    """Generate a turn-in ready homework submission."""
+    prompt = f"""Complete this homework assignment as a top student would. Use ONLY the methods and notation from the course materials provided.
+
+ASSIGNMENT: {assignment_title}
+INSTRUCTIONS: {assignment_description}
+
+COURSE MATERIALS (lectures, textbook, past work):
+{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
+
+    return call_claude_json(HOMEWORK_TURNIN_SYSTEM, prompt, max_tokens=8192)
+
+
+def generate_homework_study(
+    assignment_title: str,
+    assignment_description: str,
+    course_materials_context: str = "",
+) -> dict:
+    """Generate a detailed learning version of the homework."""
+    prompt = f"""Work through this homework assignment step by step, explaining EVERYTHING in detail so the student can learn from it.
+
+ASSIGNMENT: {assignment_title}
+INSTRUCTIONS: {assignment_description}
+
+COURSE MATERIALS (lectures, textbook, past work):
+{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
+
+    return call_claude_json(HOMEWORK_STUDY_SYSTEM, prompt, max_tokens=8192)
+
+
+# ── Draft Generation (legacy, kept for compatibility) ───
 
 DRAFT_SYSTEM = """You are an expert academic writing assistant.
 Given an assignment specification and relevant course materials, generate a high-quality
@@ -166,9 +255,9 @@ ASSIGNMENT: {assignment_title}
 INSTRUCTIONS: {assignment_description}
 
 COURSE MATERIALS FOR CONTEXT:
-{course_materials_context[:15000] if course_materials_context else "No additional context."}"""
+{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
 
-    return call_claude_json(DRAFT_SYSTEM, prompt)
+    return call_claude_json(DRAFT_SYSTEM, prompt, max_tokens=8192)
 
 
 # ── Weekly Plan Generation ──────────────────────────────

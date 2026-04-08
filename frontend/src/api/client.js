@@ -32,6 +32,11 @@ export const getAssignments = (courseId) =>
   api.get(`/courses/${courseId}/assignments`).then((r) => r.data);
 export const createAssignment = (courseId, data) =>
   api.post(`/courses/${courseId}/assignments`, data).then((r) => r.data);
+export const uploadAssignment = (courseId, file) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post(`/courses/${courseId}/upload-assignment`, form).then((r) => r.data);
+};
 
 // ── Steps ──────────────────────────────────────────────
 export const getSteps = (assignmentId) =>

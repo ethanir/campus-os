@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus, Upload,
 } from "lucide-react";
 import {
-  getCourse, getAssignments, getMaterials, getSteps, createAssignment,
+  getCourse, getAssignments, getMaterials, getSteps, createAssignment, uploadAssignment,
   generateSteps, toggleStep, generateStudyGuide,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
 } from "../api/client";
@@ -42,13 +42,14 @@ export default function CoursePage() {
   const [resultModal, setResultModal] = useState(null);
   const [showStudyGuideSetup, setShowStudyGuideSetup] = useState(false);
   const [showAddAssignment, setShowAddAssignment] = useState(false);
+  const [uploadingAssignment, setUploadingAssignment] = useState(false);
   const [studyExamTitle, setStudyExamTitle] = useState("Midterm");
   const [selectedMaterials, setSelectedMaterials] = useState([]);
-  const [assignmentForm, setAssignmentForm] = useState({ title: "", description: "" });
   const [showUpload, setShowUpload] = useState(false);
   const [uploadType, setUploadType] = useState("slides");
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef(null);
+  const assignmentInput = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -116,15 +117,19 @@ export default function CoursePage() {
     setAiLoading(null);
   };
 
-  const handleAddAssignment = async () => {
-    if (!assignmentForm.title) return;
-    try {
-      await createAssignment(id, assignmentForm);
-      const a = await getAssignments(id);
-      setAssignments(a);
-      setShowAddAssignment(false);
-      setAssignmentForm({ title: "", description: "" });
-    } catch {}
+  const handleUploadAssignment = async (files) => {
+    setUploadingAssignment(true);
+    for (const file of files) {
+      try { await uploadAssignment(id, file); } catch {}
+    }
+    const a = await getAssignments(id);
+    const m = await getMaterials(id);
+    setAssignments(a);
+    setMaterials(m);
+    setSelectedMaterials(m.map((mat) => mat.id));
+    setUploadingAssignment(false);
+    setShowAddAssignment(false);
+    if (assignmentInput.current) assignmentInput.current.value = "";
   };
 
   const handleUploadFiles = async (files) => {
@@ -293,33 +298,27 @@ export default function CoursePage() {
       {showAddAssignment && (
         <Modal onClose={() => setShowAddAssignment(false)}>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Add Assignment</h2>
+            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Upload Assignment</h2>
             <button onClick={() => setShowAddAssignment(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
           </div>
-          <div className="space-y-4">
-            <div>
-              <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TITLE</label>
-              <input value={assignmentForm.title} onChange={(e) => setAssignmentForm({ ...assignmentForm, title: e.target.value })}
-                placeholder="HW5: Dynamic Programming Proofs"
-                className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
-                style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }} />
-            </div>
-            <div>
-              <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>
-                DESCRIPTION / INSTRUCTIONS
-              </label>
-              <textarea value={assignmentForm.description} onChange={(e) => setAssignmentForm({ ...assignmentForm, description: e.target.value })}
-                placeholder="Paste the full assignment instructions here..."
-                rows={6}
-                className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none resize-none"
-                style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }} />
-            </div>
+          <div
+            onClick={() => assignmentInput.current?.click()}
+            className="rounded-xl p-8 text-center cursor-pointer transition"
+            style={{ border: "2px dashed var(--border)" }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadAssignment(Array.from(e.dataTransfer.files)); }}>
+            {uploadingAssignment ? (
+              <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} />
+            ) : (
+              <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />
+            )}
+            <p className="text-sm" style={{ color: uploadingAssignment ? "var(--accent)" : "var(--text)" }}>
+              {uploadingAssignment ? "Uploading..." : "Drop assignment file or click to browse"}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>PDF, PPTX, TXT, MD</p>
           </div>
-          <button onClick={handleAddAssignment} disabled={!assignmentForm.title}
-            className="w-full mt-4 font-mono text-xs font-bold tracking-wider py-3 rounded-lg transition disabled:opacity-30"
-            style={{ background: "var(--accent)", color: "var(--bg)" }}>
-            ADD ASSIGNMENT
-          </button>
+          <input ref={assignmentInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden"
+            onChange={(e) => { if (e.target.files.length) handleUploadAssignment(Array.from(e.target.files)); }} />
         </Modal>
       )}
 

@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+import shutil
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import Assignment, TaskStep, Course, Material, AssignmentStatus
+from app.models.models import Assignment, TaskStep, Course, Material, MaterialType, AssignmentStatus
 from app.schemas.schemas import (
     AssignmentCreate,
     AssignmentResponse,
@@ -10,6 +12,7 @@ from app.schemas.schemas import (
     TaskStepToggle,
 )
 from app.services.ai_service import generate_task_steps, generate_draft, generate_homework_turnin, generate_homework_study
+from app.services.file_extraction import extract_text
 
 router = APIRouter(prefix="/api", tags=["assignments"])
 
@@ -159,6 +162,54 @@ def create_homework_study(assignment_id: int, db: Session = Depends(get_db)):
     context = _gather_course_context(db, assignment.course_id)
     result = generate_homework_study(assignment.title, assignment.description, context)
     return result
+
+
+# ── Upload Assignment File ──────────────────────────────
+
+@router.post("/courses/{course_id}/upload-assignment")
+async def upload_assignment(
+    course_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Upload an assignment file — creates both a Material and an Assignment from it."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Save file
+    course_dir = settings.upload_path / str(course_id)
+    course_dir.mkdir(parents=True, exist_ok=True)
+    file_path = course_dir / file.filename
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    # Extract text
+    extracted = extract_text(str(file_path))
+
+    # Save as material
+    mat = Material(
+        course_id=course_id,
+        filename=file.filename,
+        file_path=str(file_path),
+        material_type=MaterialType.ASSIGNMENT,
+        extracted_text=extracted,
+    )
+    db.add(mat)
+    db.commit()
+
+    # Create assignment with filename as title and extracted text as description
+    title = file.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
+    assignment = Assignment(
+        course_id=course_id,
+        title=title,
+        description=extracted[:10000] if extracted else "",
+    )
+    db.add(assignment)
+    db.commit()
+    db.refresh(assignment)
+
+    return _assignment_response(assignment)
 
 
 # ── Helper ──────────────────────────────────────────────

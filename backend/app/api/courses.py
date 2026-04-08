@@ -51,6 +51,63 @@ def create_course(data: CourseCreate, db: Session = Depends(get_db)):
     )
 
 
+# ── Schedule Screenshot Import ──────────────────────────
+
+@router.post("/import-screenshot")
+async def import_from_screenshot(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Upload a screenshot of a course schedule and AI-extract courses from it."""
+    contents = await file.read()
+
+    ext = file.filename.lower().rsplit(".", 1)[-1] if file.filename else "png"
+    media_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+    media_type = media_map.get(ext, "image/png")
+
+    result = parse_schedule_screenshot(contents, media_type)
+
+    created = []
+    skipped = []
+    for c in result.get("courses", []):
+        code = c.get("code", "").strip()
+        name = c.get("name", "").strip()
+        if not code:
+            continue
+
+        existing = db.query(Course).filter(Course.code == code).first()
+        if existing:
+            skipped.append(code)
+            continue
+
+        colors = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"]
+        color = colors[len(created) % len(colors)]
+
+        course = Course(
+            code=code,
+            name=name,
+            professor=c.get("professor", ""),
+            semester=result.get("semester", "Spring 2026"),
+            color=color,
+        )
+        db.add(course)
+        db.commit()
+        db.refresh(course)
+        created.append({
+            "id": course.id,
+            "code": course.code,
+            "name": course.name,
+            "professor": course.professor,
+            "notes": c.get("notes", ""),
+        })
+
+    return {
+        "created": created,
+        "skipped": skipped,
+        "total_detected": len(result.get("courses", [])),
+    }
+
+
 @router.get("/{course_id}", response_model=CourseResponse)
 def get_course(course_id: int, db: Session = Depends(get_db)):
     course = db.query(Course).filter(Course.id == course_id).first()
@@ -161,65 +218,3 @@ def parse_course_syllabus(course_id: int, db: Session = Depends(get_db)):
 
     result = parse_syllabus(syllabus.extracted_text, course.name)
     return result
-
-
-# ── Schedule Screenshot Import ──────────────────────────
-
-@router.post("/import-screenshot")
-async def import_from_screenshot(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    """Upload a screenshot of a course schedule and AI-extract courses from it."""
-    contents = await file.read()
-
-    # Determine media type
-    ext = file.filename.lower().rsplit(".", 1)[-1] if file.filename else "png"
-    media_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
-    media_type = media_map.get(ext, "image/png")
-
-    # AI parse the screenshot
-    result = parse_schedule_screenshot(contents, media_type)
-
-    # Create courses that don't already exist
-    created = []
-    skipped = []
-    for c in result.get("courses", []):
-        code = c.get("code", "").strip()
-        name = c.get("name", "").strip()
-        if not code:
-            continue
-
-        # Check if course already exists
-        existing = db.query(Course).filter(Course.code == code).first()
-        if existing:
-            skipped.append(code)
-            continue
-
-        # Pick a color
-        colors = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"]
-        color = colors[len(created) % len(colors)]
-
-        course = Course(
-            code=code,
-            name=name,
-            professor=c.get("professor", ""),
-            semester=result.get("semester", "Spring 2026"),
-            color=color,
-        )
-        db.add(course)
-        db.commit()
-        db.refresh(course)
-        created.append({
-            "id": course.id,
-            "code": course.code,
-            "name": course.name,
-            "professor": course.professor,
-            "notes": c.get("notes", ""),
-        })
-
-    return {
-        "created": created,
-        "skipped": skipped,
-        "total_detected": len(result.get("courses", [])),
-    }

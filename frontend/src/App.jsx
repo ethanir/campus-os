@@ -23,7 +23,9 @@ function ThemeSwitcher() {
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       {/* Popup */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 w-full rounded-lg overflow-hidden"
+        <div className="absolute bottom-full left-0 w-full pb-1"
+          style={{ background: "transparent" }}>
+        <div className="w-full rounded-lg overflow-hidden"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
           {THEMES.map((t) => {
             const Icon = THEME_ICONS[t];
@@ -40,6 +42,7 @@ function ThemeSwitcher() {
               </button>
             );
           })}
+        </div>
         </div>
       )}
 

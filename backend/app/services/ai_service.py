@@ -210,3 +210,43 @@ UPCOMING ASSIGNMENTS:
 Today is {datetime.now().strftime('%A, %B %d, %Y')}. Prioritize by urgency and grade weight."""
 
     return call_claude_json(WEEKLY_PLAN_SYSTEM, prompt)
+
+
+# ── Schedule Screenshot Parsing ─────────────────────────
+
+SCHEDULE_SCREENSHOT_SYSTEM = """You are an expert at reading university course schedules from screenshots.
+You will be shown a screenshot of a student's course list, registration page, or schedule.
+
+Your job is to extract ONLY the CURRENT/ACTIVE semester courses. Rules:
+- The current semester is Spring 2026.
+- IGNORE any courses marked "Closed" or from past semesters (Fall 2025, Spring 2025, etc.)
+- ONLY extract courses with status "Open", "Registered", or that are clearly active.
+- If a course has a lab section (like "CS 401, 0" lecture + "CS 401, 1" lab), treat it as ONE course. Add a note like "Has lab section" but do NOT create a duplicate entry.
+- If a course is a seminar with 0 credit hours (like CS 499 Professional Development Seminar), still include it but note it's 0 credits.
+- Extract the course code (e.g., "CS 401"), the full course title, and the professor name if visible.
+- If professor name is not visible, leave it as empty string.
+
+Return JSON:
+{
+  "semester": "Spring 2026",
+  "courses": [
+    {
+      "code": "CS 401",
+      "name": "Computer Algorithms I",
+      "professor": "Ajay Kshemkalyani",
+      "notes": "3 credit hours, Lecture-Discussion"
+    }
+  ]
+}"""
+
+
+def parse_schedule_screenshot(image_data: bytes, media_type: str) -> dict:
+    """Parse a screenshot of a course schedule and extract active courses."""
+    from app.core.claude_client import call_claude_vision_json
+
+    return call_claude_vision_json(
+        SCHEDULE_SCREENSHOT_SYSTEM,
+        image_data,
+        media_type,
+        "Extract all ACTIVE courses from this screenshot. Only include current semester courses.",
+    )

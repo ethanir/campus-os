@@ -7,6 +7,11 @@ export const getCourses = () => api.get("/courses").then((r) => r.data);
 export const createCourse = (data) => api.post("/courses", data).then((r) => r.data);
 export const getCourse = (id) => api.get(`/courses/${id}`).then((r) => r.data);
 export const deleteCourse = (id) => api.delete(`/courses/${id}`).then((r) => r.data);
+export const importFromScreenshot = (file) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/courses/import-screenshot", form).then((r) => r.data);
+};
 
 // ── Materials ──────────────────────────────────────────
 export const uploadMaterial = (courseId, file, materialType) => {

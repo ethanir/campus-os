@@ -53,6 +53,16 @@ def update_assignment_status(assignment_id: int, status: str, db: Session = Depe
     return {"ok": True}
 
 
+@router.delete("/assignments/{assignment_id}")
+def delete_assignment(assignment_id: int, db: Session = Depends(get_db)):
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    db.delete(assignment)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Task Steps ──────────────────────────────────────────
 
 @router.get("/assignments/{assignment_id}/steps", response_model=list[TaskStepResponse])

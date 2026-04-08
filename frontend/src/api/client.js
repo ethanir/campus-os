@@ -22,6 +22,8 @@ export const uploadMaterial = (courseId, file, materialType) => {
 };
 export const getMaterials = (courseId) =>
   api.get(`/courses/${courseId}/materials`).then((r) => r.data);
+export const deleteMaterial = (courseId, materialId) =>
+  api.delete(`/courses/${courseId}/materials/${materialId}`).then((r) => r.data);
 
 // ── Syllabus Parsing ───────────────────────────────────
 export const parseSyllabus = (courseId) =>
@@ -32,6 +34,8 @@ export const getAssignments = (courseId) =>
   api.get(`/courses/${courseId}/assignments`).then((r) => r.data);
 export const createAssignment = (courseId, data) =>
   api.post(`/courses/${courseId}/assignments`, data).then((r) => r.data);
+export const deleteAssignment = (assignmentId) =>
+  api.delete(`/assignments/${assignmentId}`).then((r) => r.data);
 export const uploadAssignment = (courseId, file) => {
   const form = new FormData();
   form.append("file", file);

@@ -196,6 +196,16 @@ def list_materials(course_id: int, db: Session = Depends(get_db)):
     ]
 
 
+@router.delete("/{course_id}/materials/{material_id}")
+def delete_material(course_id: int, material_id: int, db: Session = Depends(get_db)):
+    mat = db.query(Material).filter(Material.id == material_id, Material.course_id == course_id).first()
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material not found")
+    db.delete(mat)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Syllabus Parsing ───────────────────────────────────
 
 @router.post("/{course_id}/parse-syllabus")

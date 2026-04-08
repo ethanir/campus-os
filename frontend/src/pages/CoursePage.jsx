@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
-  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus, Upload,
+  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus, Upload, Trash2,
 } from "lucide-react";
 import {
   getCourse, getAssignments, getMaterials, getSteps, createAssignment, uploadAssignment,
   generateSteps, toggleStep, generateStudyGuide,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
+  deleteMaterial, deleteAssignment,
 } from "../api/client";
 
 function Modal({ onClose, wide, children }) {
@@ -48,6 +49,7 @@ export default function CoursePage() {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadType, setUploadType] = useState("slides");
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // {type: "material"|"assignment", id, name}
   const fileInput = useRef(null);
   const assignmentInput = useRef(null);
 
@@ -145,6 +147,23 @@ export default function CoursePage() {
     if (fileInput.current) fileInput.current.value = "";
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === "material") {
+        await deleteMaterial(id, deleteTarget.id);
+        const m = await getMaterials(id);
+        setMaterials(m);
+        setSelectedMaterials(m.map((mat) => mat.id));
+      } else {
+        await deleteAssignment(deleteTarget.id);
+        const a = await getAssignments(id);
+        setAssignments(a);
+      }
+    } catch {}
+    setDeleteTarget(null);
+  };
+
   const toggleMaterial = (matId) => {
     setSelectedMaterials((prev) =>
       prev.includes(matId) ? prev.filter((x) => x !== matId) : [...prev, matId]
@@ -198,13 +217,17 @@ export default function CoursePage() {
           ) : (
             <div className="space-y-2">
               {materials.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5"
+                <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 group"
                   style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                   <FileText size={13} style={{ color: "var(--text-dim)" }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs truncate" style={{ color: "var(--text)" }}>{m.filename}</div>
                     <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>{m.material_type}</div>
                   </div>
+                  <button onClick={() => setDeleteTarget({ type: "material", id: m.id, name: m.filename })}
+                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition" style={{ color: "var(--accent-red)" }}>
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -233,15 +256,22 @@ export default function CoursePage() {
                 const isExp = expanded === a.id;
                 const aSteps = steps[a.id] || [];
                 return (
-                  <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                    <button onClick={() => handleExpand(a.id)}
-                      className="w-full flex items-center justify-between p-3.5 text-left transition" style={{ color: "var(--text)" }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{a.title}</div>
-                        {a.due_date && <div className="font-mono text-[10px] mt-0.5" style={{ color: "var(--text-dim)" }}>Due {new Date(a.due_date).toLocaleDateString()}</div>}
-                      </div>
-                      {isExp ? <ChevronUp size={13} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-dim)" }} />}
-                    </button>
+                  <div key={a.id} className="rounded-xl overflow-hidden group" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                    <div className="flex items-center p-3.5">
+                      <button onClick={() => handleExpand(a.id)} className="flex-1 flex items-center text-left min-w-0" style={{ color: "var(--text)" }}>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{a.title}</div>
+                          {a.due_date && <div className="font-mono text-[10px] mt-0.5" style={{ color: "var(--text-dim)" }}>Due {new Date(a.due_date).toLocaleDateString()}</div>}
+                        </div>
+                      </button>
+                      <button onClick={() => setDeleteTarget({ type: "assignment", id: a.id, name: a.title })}
+                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition mr-1" style={{ color: "var(--accent-red)" }}>
+                        <Trash2 size={12} />
+                      </button>
+                      <button onClick={() => handleExpand(a.id)}>
+                        {isExp ? <ChevronUp size={13} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-dim)" }} />}
+                      </button>
+                    </div>
 
                     {isExp && (
                       <div className="px-3.5 pb-3.5" style={{ borderTop: "1px solid var(--border)" }}>
@@ -423,6 +453,30 @@ export default function CoursePage() {
             style={{ background: "var(--accent)", color: "var(--bg)" }}>
             GENERATE STUDY GUIDE
           </button>
+        </Modal>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <Modal onClose={() => setDeleteTarget(null)}>
+          <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>
+            Delete {deleteTarget.type === "material" ? "Material" : "Assignment"}
+          </h2>
+          <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
+            Delete <strong style={{ color: "var(--text)" }}>{deleteTarget.name}</strong>? This can't be undone.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setDeleteTarget(null)}
+              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
+              style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+              CANCEL
+            </button>
+            <button onClick={handleDelete}
+              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
+              style={{ background: "var(--accent-red)", color: "#fff" }}>
+              DELETE
+            </button>
+          </div>
         </Modal>
       )}
 

@@ -92,7 +92,7 @@ export default function App() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <Sidebar />
-      <main className="ml-52 p-6 max-w-[960px]">
+      <main className="ml-52 p-6">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/courses" element={<CoursesPage />} />

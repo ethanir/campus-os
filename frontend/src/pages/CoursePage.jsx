@@ -11,6 +11,7 @@ import {
   generateSteps, toggleStep, generateStudyGuide, getContextUsage, getGenerations, deleteGeneration,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
   deleteMaterial, deleteAssignment, updateAssignmentContext,
+} from "../api/client";
 
 function Modal({ onClose, wide, children }) {
   return createPortal(

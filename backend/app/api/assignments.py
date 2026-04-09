@@ -197,7 +197,8 @@ def create_homework_turnin(assignment_id: int, user: User = Depends(require_cred
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    result = generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased)
+    images = _gather_course_images(db, assignment.course_id)
+    result = generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased, image_paths=images)
     deduct_credits(user, db)
     _save_generation(db, assignment.course_id, assignment_id, "turnin", f"Turn-in: {assignment.title}", result, result.get("notes", ""))
     return result
@@ -210,7 +211,8 @@ def create_homework_study(assignment_id: int, user: User = Depends(require_credi
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    result = generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased)
+    images = _gather_course_images(db, assignment.course_id)
+    result = generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased, image_paths=images)
     deduct_credits(user, db)
     _save_generation(db, assignment.course_id, assignment_id, "study", f"Study: {assignment.title}", result, result.get("key_concepts", []))
     return result

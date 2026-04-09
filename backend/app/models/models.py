@@ -106,3 +106,19 @@ class StudyGuide(Base):
     content = Column(Text, nullable=False)
     topics_covered = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class Generation(Base):
+    __tablename__ = "generations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True)
+    gen_type = Column(String(50), nullable=False)  # turnin, study, draft, steps, study_guide
+    title = Column(String(300), default="")
+    content = Column(Text, nullable=False)  # JSON string of full response
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    course = relationship("Course")
+    assignment = relationship("Assignment")

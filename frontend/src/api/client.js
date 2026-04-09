@@ -4,7 +4,6 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
-// Attach token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -40,6 +39,9 @@ export const uploadMaterial = (courseId, file, materialType) => {
 export const getMaterials = (courseId) => api.get(`/courses/${courseId}/materials`).then((r) => r.data);
 export const deleteMaterial = (courseId, materialId) => api.delete(`/courses/${courseId}/materials/${materialId}`).then((r) => r.data);
 
+// ── Context Usage ──────────────────────────────────────
+export const getContextUsage = (courseId) => api.get(`/courses/${courseId}/context-usage`).then((r) => r.data);
+
 // ── Assignments ────────────────────────────────────────
 export const getAssignments = (courseId) => api.get(`/courses/${courseId}/assignments`).then((r) => r.data);
 export const createAssignment = (courseId, data) => api.post(`/courses/${courseId}/assignments`, data).then((r) => r.data);
@@ -71,7 +73,9 @@ export const generateStudyGuide = (courseId, examTitle, materialIds = []) => {
   return api.post(`/courses/${courseId}/study-guide?${params}`).then((r) => r.data);
 };
 
-export default api;
+// ── Saved Generations ──────────────────────────────────
+export const getGenerations = (courseId) => api.get(`/courses/${courseId}/generations`).then((r) => r.data);
+export const getGeneration = (genId) => api.get(`/generations/${genId}`).then((r) => r.data);
+export const deleteGeneration = (genId) => api.delete(`/generations/${genId}`).then((r) => r.data);
 
-// ── Context Usage ──────────────────────────────────────
-export const getContextUsage = (courseId) => api.get(`/courses/${courseId}/context-usage`).then((r) => r.data);
+export default api;

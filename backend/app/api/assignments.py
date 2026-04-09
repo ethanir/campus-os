@@ -1,3 +1,4 @@
+import json
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
@@ -5,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.auth import get_current_user, require_credits, deduct_credits
-from app.models.models import Assignment, TaskStep, Course, Material, MaterialType, AssignmentStatus, User
+from app.models.models import Assignment, TaskStep, Course, Material, MaterialType, AssignmentStatus, User, Generation
 from app.schemas.schemas import AssignmentCreate, AssignmentResponse, TaskStepResponse, TaskStepToggle
 from app.services.ai_service import generate_task_steps, generate_draft, generate_homework_turnin, generate_homework_study
 from app.services.file_extraction import extract_text
@@ -18,6 +19,22 @@ def _verify_course(db, user, course_id):
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     return course
+
+
+def _save_generation(db, course_id, assignment_id, gen_type, title, result, notes=""):
+    """Save an AI generation to the database."""
+    gen = Generation(
+        course_id=course_id,
+        assignment_id=assignment_id,
+        gen_type=gen_type,
+        title=title,
+        content=json.dumps(result),
+        notes=notes,
+    )
+    db.add(gen)
+    db.commit()
+    db.refresh(gen)
+    return gen
 
 
 # ── Assignments CRUD ────────────────────────────────────
@@ -96,8 +113,6 @@ def generate_steps_route(assignment_id: int, user: User = Depends(require_credit
 
     context = _gather_course_context(db, assignment.course_id)
     result = generate_task_steps(assignment.title, assignment.description, context, premium=user.has_purchased)
-
-    # SUCCESS — now deduct
     deduct_credits(user, db)
 
     db.query(TaskStep).filter(TaskStep.assignment_id == assignment_id).delete()
@@ -105,6 +120,8 @@ def generate_steps_route(assignment_id: int, user: User = Depends(require_credit
         step = TaskStep(assignment_id=assignment_id, order=i + 1, text=step_data["text"], estimated_minutes=step_data.get("estimated_minutes", 30))
         db.add(step)
     db.commit()
+
+    _save_generation(db, assignment.course_id, assignment_id, "steps", f"Steps: {assignment.title}", result)
     return result
 
 
@@ -134,6 +151,7 @@ def create_draft(assignment_id: int, user: User = Depends(require_credits(1)), d
     context = _gather_course_context(db, assignment.course_id)
     result = generate_draft(assignment.title, assignment.description, context, premium=user.has_purchased)
     deduct_credits(user, db)
+    _save_generation(db, assignment.course_id, assignment_id, "draft", f"Draft: {assignment.title}", result, result.get("notes", ""))
     return result
 
 
@@ -146,6 +164,7 @@ def create_homework_turnin(assignment_id: int, user: User = Depends(require_cred
     context = _gather_course_context(db, assignment.course_id)
     result = generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased)
     deduct_credits(user, db)
+    _save_generation(db, assignment.course_id, assignment_id, "turnin", f"Turn-in: {assignment.title}", result, result.get("notes", ""))
     return result
 
 
@@ -158,7 +177,53 @@ def create_homework_study(assignment_id: int, user: User = Depends(require_credi
     context = _gather_course_context(db, assignment.course_id)
     result = generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased)
     deduct_credits(user, db)
+    _save_generation(db, assignment.course_id, assignment_id, "study", f"Study: {assignment.title}", result, result.get("key_concepts", []))
     return result
+
+
+# ── List saved generations ──────────────────────────────
+
+@router.get("/courses/{course_id}/generations")
+def list_generations(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _verify_course(db, user, course_id)
+    gens = db.query(Generation).filter(Generation.course_id == course_id).order_by(Generation.created_at.desc()).all()
+    return [{
+        "id": g.id,
+        "assignment_id": g.assignment_id,
+        "gen_type": g.gen_type,
+        "title": g.title,
+        "content": g.content,
+        "notes": g.notes,
+        "created_at": g.created_at.isoformat(),
+    } for g in gens]
+
+
+@router.get("/generations/{gen_id}")
+def get_generation(gen_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    gen = db.query(Generation).filter(Generation.id == gen_id).first()
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generation not found")
+    _verify_course(db, user, gen.course_id)
+    return {
+        "id": gen.id,
+        "assignment_id": gen.assignment_id,
+        "gen_type": gen.gen_type,
+        "title": gen.title,
+        "content": gen.content,
+        "notes": gen.notes,
+        "created_at": gen.created_at.isoformat(),
+    }
+
+
+@router.delete("/generations/{gen_id}")
+def delete_generation(gen_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    gen = db.query(Generation).filter(Generation.id == gen_id).first()
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generation not found")
+    _verify_course(db, user, gen.course_id)
+    db.delete(gen)
+    db.commit()
+    return {"ok": True}
 
 
 def _assignment_response(a: Assignment) -> AssignmentResponse:

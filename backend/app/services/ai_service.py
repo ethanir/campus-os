@@ -251,8 +251,8 @@ def generate_homework_turnin(title: str, description: str, materials_text: str, 
     else:
         result = _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
     
-    # Second pass: verify and fix errors (only for premium/paid users to save costs)
-    if premium and result.get("submission"):
+    # Second pass: verify and fix errors
+    if result.get("submission"):
         try:
             verification = _verify_submission(
                 result["submission"], description, materials_text, premium, image_paths

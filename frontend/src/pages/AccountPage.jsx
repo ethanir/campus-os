@@ -71,13 +71,13 @@ export default function AccountPage() {
                 background: isPremium ? "var(--accent)" : "var(--bg-hover)",
                 color: isPremium ? "var(--bg)" : "var(--text-dim)",
               }}>
-                {isPremium ? "CLAUDE SONNET" : "GEMINI FLASH"}
+                {isPremium ? "PREMIUM · VERIFIED" : "STANDARD"}
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
               {isPremium
-                ? "You're using Claude Sonnet — the most accurate AI for coursework."
-                : "You're using standard AI. Upgrade to Premium for significantly better results."}
+                ? "You're using premium AI with verified solutions — highest accuracy for coursework."
+                : "Free tier uses standard AI. Buy credits for premium AI with verified, higher-accuracy solutions."}
             </p>
           </div>
         </div>

@@ -84,9 +84,9 @@ def get_me(user: User = Depends(get_current_user)):
 # ── Credit Packs ────────────────────────────────────────
 
 CREDIT_PACKS = {
-    "starter": {"credits": 50, "price_cents": 499, "label": "Starter Pack", "description": "50 premium AI generations"},
-    "pro": {"credits": 150, "price_cents": 999, "label": "Pro Pack", "description": "150 premium AI generations"},
-    "mega": {"credits": 500, "price_cents": 2499, "label": "Mega Pack", "description": "500 premium AI generations"},
+    "starter": {"credits": 10, "price_cents": 499, "label": "Starter Pack", "description": "10 premium AI generations"},
+    "pro": {"credits": 25, "price_cents": 999, "label": "Pro Pack", "description": "25 premium AI generations"},
+    "mega": {"credits": 75, "price_cents": 2499, "label": "Mega Pack", "description": "75 premium AI generations"},
 }
 
 

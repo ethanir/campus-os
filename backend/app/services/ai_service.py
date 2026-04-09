@@ -5,7 +5,7 @@ AI Service — Dual Engine
 """
 
 import json
-from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json
+from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
 from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
 
 
@@ -13,7 +13,7 @@ from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
 # Claude Sonnet supports ~200k tokens. 1 token ≈ 4 chars.
 # Reserve 20k tokens for system prompt + response = ~80k chars.
 # That leaves ~720k chars for context. We cap at 600k to be safe.
-MAX_CONTEXT_CHARS = 600000
+MAX_CONTEXT_CHARS = 200000  # ~200k chars keeps Sonnet costs at ~$0.15/call
 
 
 # ── System Prompts ──────────────────────────────────────
@@ -181,10 +181,8 @@ def _get_context_usage(materials_text: str) -> dict:
 # ── Routing Logic ───────────────────────────────────────
 
 def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 4096) -> dict:
-    """Route to Opus (premium), Sonnet (free), or Gemini (free tier)."""
+    """Route to Sonnet (paid) or Gemini (free)."""
     if premium:
-        return call_claude_opus_json(system, user_prompt, max_tokens=max_tokens)
-    elif True:  # Use Claude Sonnet for non-premium
         return call_claude_json(system, user_prompt, max_tokens=max_tokens)
     else:
         return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
@@ -192,11 +190,8 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
 
 def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:
     """Route AI calls that include page images (for seeing figures/graphs)."""
-    if image_paths:
-        if premium:
-            return call_claude_opus_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
-        else:
-            return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
+    if image_paths and premium:
+        return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
     else:
         return _call_ai(system, user_prompt, premium, max_tokens=max_tokens)
 
@@ -228,9 +223,9 @@ Check every answer for correctness. Fix any errors you find."""
     
     try:
         if image_paths:
-            return _call_ai_with_images(VERIFICATION_SYSTEM, user_prompt, image_paths, premium, max_tokens=8000)
+            return _call_ai_with_images(VERIFICATION_SYSTEM, user_prompt, image_paths, premium, max_tokens=6000)
         else:
-            return _call_ai(VERIFICATION_SYSTEM, user_prompt, premium, max_tokens=8000)
+            return _call_ai(VERIFICATION_SYSTEM, user_prompt, premium, max_tokens=6000)
     except Exception:
         return {"corrections": [], "verified_ok": ["all"]}
 

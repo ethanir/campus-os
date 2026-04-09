@@ -94,7 +94,7 @@ export default function CoursePage() {
   const handleUploadFiles = async (files) => {
     setUploading(true);
     for (const file of files) try { await uploadMaterial(id, file, uploadType); } catch {}
-    const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id));
+    const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id)); getContextUsage(id).then(setContextUsage).catch(() => {});
     setUploading(false); setShowUpload(false);
     if (fileInput.current) fileInput.current.value = "";
   };
@@ -109,7 +109,7 @@ export default function CoursePage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      if (deleteTarget.type === "material") { await deleteMaterial(id, deleteTarget.id); const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id)); }
+      if (deleteTarget.type === "material") { await deleteMaterial(id, deleteTarget.id); const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id)); getContextUsage(id).then(setContextUsage).catch(() => {}); }
       else { await deleteAssignment(deleteTarget.id); setAssignments(await getAssignments(id)); }
     } catch {}
     setDeleteTarget(null);
@@ -150,13 +150,13 @@ export default function CoursePage() {
         {/* Materials */}
         <div>
           <div className="flex justify-between items-center mb-3">
-          {contextUsage && (
-            <div className="mb-3 rounded-lg p-2.5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          {contextUsage && contextUsage.used_pct > 0 && (
+            <div className="mb-4 rounded-xl p-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex justify-between items-center mb-1.5">
-                <span className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>AI CONTEXT</span>
-                <span className="font-mono text-[9px]" style={{ color: contextUsage.used_pct > 80 ? "var(--accent-red)" : "var(--text-dim)" }}>{contextUsage.used_pct}%</span>
+                <span className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>AI CONTEXT USAGE</span>
+                <span className="font-mono text-[9px]" style={{ color: contextUsage.used_pct > 80 ? "var(--accent-red)" : "var(--accent)" }}>{contextUsage.used_pct}% · {Math.round(contextUsage.used_chars / 1000)}k / {Math.round(contextUsage.max_chars / 1000)}k chars</span>
               </div>
-              <div style={{ height: 4, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
                 <div style={{ height: "100%", borderRadius: 2, width: `${Math.min(contextUsage.used_pct, 100)}%`, background: contextUsage.used_pct > 80 ? "var(--accent-red)" : "var(--accent)", transition: "width 0.3s" }} />
               </div>
             </div>

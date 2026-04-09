@@ -62,6 +62,7 @@ class Material(Base):
     file_path = Column(String(500), nullable=False)
     material_type = Column(Enum(MaterialType), default=MaterialType.OTHER)
     extracted_text = Column(Text, default="")
+    page_images_dir = Column(String(500), default="")  # Dir containing rasterized page images
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     course = relationship("Course", back_populates="materials")

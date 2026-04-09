@@ -67,3 +67,59 @@ def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: s
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
     return json.loads(raw.strip(), strict=False)
+
+
+def call_claude_multimodal_json(system_prompt: str, user_prompt: str, image_paths: list[str], max_tokens: int = 4096) -> dict:
+    """Send text + multiple page images to Claude and parse JSON response.
+    
+    Used for homework generation where the AI needs to SEE figures/graphs from textbooks.
+    """
+    import base64
+    from pathlib import Path
+    
+    system_with_json = (
+        system_prompt
+        + "\n\nRespond ONLY with valid JSON. No markdown, no backticks, no preamble."
+    )
+    
+    content_parts = []
+    
+    # Add page images first (max 20 to stay within limits)
+    added = 0
+    for img_path in image_paths:
+        if added >= 20:
+            break
+        if not Path(img_path).exists():
+            continue
+        try:
+            with open(img_path, "rb") as f:
+                img_data = f.read()
+            b64 = base64.standard_b64encode(img_data).decode("utf-8")
+            # Get page number from filename for labeling
+            fname = Path(img_path).stem
+            content_parts.append({"type": "text", "text": f"[Page image: {fname}]"})
+            content_parts.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/png", "data": b64}
+            })
+            added += 1
+        except Exception:
+            continue
+    
+    # Add text prompt last
+    content_parts.append({"type": "text", "text": user_prompt})
+    
+    message = client.messages.create(
+        model=settings.claude_model,
+        max_tokens=max_tokens,
+        system=system_with_json,
+        messages=[{"role": "user", "content": content_parts}],
+        timeout=180.0,
+    )
+    
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1]
+    if raw.endswith("```"):
+        raw = raw.rsplit("```", 1)[0]
+    return json.loads(raw.strip(), strict=False)

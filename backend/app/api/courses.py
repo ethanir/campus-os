@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user, require_credits, deduct_credits
 from app.models.models import Course, Material, MaterialType, User
 from app.schemas.schemas import CourseCreate, CourseResponse, MaterialResponse
-from app.services.file_extraction import extract_text
+from app.services.file_extraction import extract_text, extract_pdf_page_images
 from app.services.ai_service import parse_syllabus, parse_schedule_screenshot
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
@@ -114,7 +114,16 @@ async def upload_material(
         shutil.copyfileobj(file.file, f)
 
     extracted = extract_text(str(file_path))
-    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType(material_type), extracted_text=extracted)
+    
+    # Extract page images from PDFs (for figures/graphs)
+    page_imgs_dir = ""
+    if file.filename.lower().endswith(".pdf"):
+        img_output = str(course_dir)
+        imgs = extract_pdf_page_images(str(file_path), img_output)
+        if imgs:
+            page_imgs_dir = str(Path(img_output) / "page_images")
+    
+    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType(material_type), extracted_text=extracted, page_images_dir=page_imgs_dir)
     db.add(mat)
     db.commit()
     db.refresh(mat)

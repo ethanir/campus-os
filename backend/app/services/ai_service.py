@@ -5,7 +5,7 @@ AI Service — Dual Engine
 """
 
 import json
-from app.core.claude_client import call_claude_json, call_claude_vision_json
+from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
 from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
 
 
@@ -44,6 +44,8 @@ ABSOLUTE RULE — CLEAN OUTPUT ONLY:
 ABSOLUTE RULE — READ THE ASSIGNMENT EXACTLY:
 - COUNT the number of sub-parts, functions, or items in each problem. Your answer must match exactly. If a problem lists 6 functions, you must address all 6.
 - If a problem references a specific figure (e.g. "Fig 1.3(b)"), find that figure in the course materials and identify EXACTLY what graph/structure it shows before answering.
+- IMPORTANT: You may be provided with images of textbook pages containing figures, graphs, and diagrams. EXAMINE THESE IMAGES CAREFULLY. They show the exact figures referenced in problems (e.g., Fig 1.3(a), Fig 1.3(b)). Describe what you see in each figure before answering questions about them.
+- Do NOT answer from memory. You may recognize these problems from a textbook — IGNORE what you think you know. Read the ACTUAL text and images provided.
 - NEVER change, simplify, or misquote what a problem says. If it says f₆(n) = 2^(2^n), do NOT write f₆(n) = 2^(2n).
 
 YOUR APPROACH — Work through ONE QUESTION AT A TIME:
@@ -171,6 +173,18 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
         return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
 
 
+def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:
+    """Route AI calls that include page images (for seeing figures/graphs)."""
+    if image_paths and True:  # Use Claude multimodal for all
+        return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
+    else:
+        # Fallback to text-only
+        if True:  # Use Claude for all
+            return call_claude_json(system, user_prompt, max_tokens=max_tokens)
+        else:
+            return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
+
+
 def _call_ai_vision(system: str, image_data: bytes, media_type: str, premium: bool, text_prompt: str = "", max_tokens: int = 4096) -> dict:
     """Route vision calls to Claude or Gemini."""
     if True:  # Use Claude for all
@@ -187,15 +201,19 @@ def generate_study_guide(course_name: str, exam_title: str, materials_text: str,
     return _call_ai(STUDY_GUIDE_SYSTEM, user_prompt, premium, max_tokens=8192)
 
 
-def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
+    if image_paths:
+        return _call_ai_with_images(HOMEWORK_TURNIN_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
     return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
 
 
-def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
+    if image_paths:
+        return _call_ai_with_images(HOMEWORK_STUDY_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
     return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=12000)
 
 

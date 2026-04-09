@@ -43,6 +43,7 @@ def on_startup():
     try:
         with engine.connect() as conn:
             conn.execute(sqlalchemy.text("ALTER TABLE assignments ADD COLUMN context_notes TEXT DEFAULT ''"))
+            conn.execute(sqlalchemy.text("ALTER TABLE materials ADD COLUMN page_images_dir TEXT DEFAULT ''"))
             conn.commit()
     except Exception:
         pass  # Column already exists

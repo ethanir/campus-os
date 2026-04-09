@@ -44,6 +44,7 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(sqlalchemy.text("ALTER TABLE assignments ADD COLUMN context_notes TEXT DEFAULT ''"))
             conn.execute(sqlalchemy.text("ALTER TABLE materials ADD COLUMN page_images_dir TEXT DEFAULT ''"))
+            conn.execute(sqlalchemy.text("UPDATE materials SET material_type = 'completed_work' WHERE material_type = 'assignment'"))
             conn.commit()
     except Exception:
         pass  # Column already exists

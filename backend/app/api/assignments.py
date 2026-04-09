@@ -107,7 +107,7 @@ async def upload_assignment(
         if imgs:
             page_imgs_dir = str(Path(img_output) / "page_images")
     
-    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType.ASSIGNMENT, extracted_text=extracted, page_images_dir=page_imgs_dir)
+    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType.COMPLETED_WORK, extracted_text=extracted, page_images_dir=page_imgs_dir)
     db.add(mat)
     db.commit()
 
@@ -179,7 +179,7 @@ def _gather_course_context(db, course_id):
         "slides": "LECTURE SLIDES (these show what the professor emphasized in class)",
         "syllabus": "COURSE SYLLABUS (contains grading policy, schedule, and expectations)",
         "announcement": "PROFESSOR ANNOUNCEMENT (may contain hints, clarifications, or policy changes)",
-        "assignment": "ASSIGNMENT DOCUMENT (the actual homework/exam being referenced)",
+        "completed_work": "PAST COMPLETED WORK (use this as reference for writing style, formatting, and how this student solves problems)",
         "other": "COURSE MATERIAL",
     }
     materials = db.query(Material).filter(Material.course_id == course_id).all()

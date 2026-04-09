@@ -10,7 +10,7 @@ class MaterialType(str, enum.Enum):
     SYLLABUS = "syllabus"
     SLIDES = "slides"
     TEXTBOOK = "textbook"
-    ASSIGNMENT = "assignment"
+    COMPLETED_WORK = "completed_work"
     ANNOUNCEMENT = "announcement"
     OTHER = "other"
 

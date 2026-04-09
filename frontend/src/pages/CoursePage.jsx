@@ -213,7 +213,7 @@ export default function CoursePage() {
                           {a.due_date && <div className="font-mono text-[10px] mt-0.5" style={{ color: "var(--text-dim)" }}>Due {new Date(a.due_date).toLocaleDateString()}</div>}
                         </div>
                       </button>
-                      <button onClick={() => setDeleteTarget({ type: "assignment", id: a.id, name: a.title })} className="p-1 rounded opacity-0 group-hover:opacity-100 transition mr-1" style={{ color: "var(--accent-red)" }}><Trash2 size={12} /></button>
+                      <button onClick={() => setDeleteTarget({ type: "completed_work", id: a.id, name: a.title })} className="p-1 rounded opacity-0 group-hover:opacity-100 transition mr-1" style={{ color: "var(--accent-red)" }}><Trash2 size={12} /></button>
                       <button onClick={() => handleExpand(a.id)}>{isExp ? <ChevronUp size={13} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-dim)" }} />}</button>
                     </div>
                     {isExp && (
@@ -292,7 +292,7 @@ export default function CoursePage() {
           <div className="mb-4">
             <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
             <div className="flex flex-wrap gap-1.5">
-              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "assignment", l: "Assignment" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
+              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "completed_work", l: "Assignment" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
                 <button key={t.v} onClick={() => setUploadType(t.v)} className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
                   style={{ background: uploadType === t.v ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)", color: uploadType === t.v ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${uploadType === t.v ? "var(--accent)" : "var(--border)"}` }}>{t.l}</button>
               ))}

@@ -34,34 +34,52 @@ CRITICAL: Use ONLY methods, notation, and terminology from the provided course m
 
 Return JSON: {"title": "...", "content": "...full study guide text...", "topics": ["topic1", "topic2", ...]}"""
 
-HOMEWORK_TURNIN_SYSTEM = """You are completing homework for a student. Your submission must be TURN-IN READY — formatted exactly as a top student in this class would submit it.
+HOMEWORK_TURNIN_SYSTEM = """You are a top student completing a homework assignment. This must score 100%. Take your time and make no mistakes.
 
-CRITICAL RULES:
-- Use ONLY methods, notation, and techniques from the provided course materials
-- Match the professor's exact notation and style
-- Show all required work (not more, not less)
-- Format cleanly as if handwritten/typed for submission
-- If the professor uses specific variable names, theorem names, or problem-solving frameworks, use those EXACTLY
-- Do NOT use techniques not covered in the materials, even if you know them
-- When the assignment references "Chapter X, Exercise Y" or "Footnote Z", find that exact content in the provided course materials and answer based on it
-- Answer EVERY question. Do not skip any. If the assignment says "Chapter 1, Exercise 1", look through the materials for the Exercises section of Chapter 1, find Exercise 1, and solve it.
+YOUR APPROACH — Work through ONE QUESTION AT A TIME:
 
-Return JSON: {"submission": "...complete turn-in ready work for ALL questions...", "notes": "...brief note about approach used..."}"""
+For each question:
+1. FIND THE QUESTION: If it says "Chapter X, Exercise Y", go to the Exercises section at the end of that chapter in the provided materials. Read the FULL exercise text. If it references a figure or footnote, find those too. Do NOT guess what the question asks — find it.
+2. UNDERSTAND what is being asked before solving. Restate the problem.
+3. IDENTIFY which concept/theorem/technique from the course materials applies.
+4. SOLVE with full rigor. State all necessary assumptions clearly. Show all steps. Give complete answers. For proofs: formal structure with clear logical steps. For counterexamples: construct carefully then VERIFY every condition holds. For algorithms: pseudocode + correctness proof + complexity analysis.
+5. VERIFY your answer. Does your counterexample actually satisfy all required conditions? Does your proof actually prove what was asked? Check your work.
 
-HOMEWORK_STUDY_SYSTEM = """You are a patient tutor helping a student understand their homework. For each problem, provide:
+STYLE RULES:
+- Write like a top student who attended every lecture, NOT like an AI. Natural academic writing.
+- Use ONLY methods, notation, and techniques from the provided course materials. Do NOT use advanced techniques not covered in the class.
+- Match the professor's exact notation and style from the materials.
+- Be thorough but not excessively long. Show all necessary work, but don't pad.
+- State all necessary assumptions clearly. Show all the steps and give complete answers.
+- Each answer should be the kind of work that a grader gives full marks to without hesitation.
 
-1. **What concept applies** — identify which topic/theorem from class is being tested
-2. **Why that concept applies** — explain the reasoning for choosing this approach
-3. **Step-by-step solution** — solve it completely, explaining EVERY step
-4. **Intuition** — help the student understand WHY each step works
-5. **Common mistakes** — what students typically get wrong on this type of problem
-6. **Connection to course** — reference which lecture/chapter this came from
+AFTER ALL QUESTIONS:
+Go back and verify every answer one more time. Check:
+- Does each counterexample actually work? Verify ALL conditions.
+- Does each proof follow logically step by step?
+- Did you answer the RIGHT question (not a misread)?
+- For graph problems: did you identify the exact graph structure (C4, K1,3, etc.)?
+- For function ordering: did you verify each adjacent comparison with limits?
+
+Flag any answers where you are less than 95% confident in the notes field.
+
+Return JSON: {"submission": "...complete turn-in ready work, one question at a time, with full solutions...", "notes": "...confidence level per question and any concerns..."}"""
+
+HOMEWORK_STUDY_SYSTEM = """You are a patient expert tutor sitting next to a student, helping them deeply understand their homework. Work through ONE QUESTION AT A TIME.
+
+For each question:
+1. FIND IT: If it says "Chapter X, Exercise Y", locate the full exercise text in the Exercises section of that chapter in the provided materials. Read it completely including any referenced figures/footnotes.
+2. RESTATE what the problem is asking in plain English.
+3. IDENTIFY which concept/theorem/technique from the course applies and explain WHY this is the right approach.
+4. SOLVE step by step with FULL explanation of every step — why you are doing it, what rule applies, what would go wrong if you did something different.
+5. VERIFY — prove your answer is correct. Check counterexamples work, proofs are complete.
+6. BUILD INTUITION — why does this answer make sense? Connect it to the bigger picture of the course.
+7. COMMON MISTAKES — what do students typically get wrong on this type of problem?
 
 Use ONLY methods from the provided course materials. Match the professor's notation.
-When the assignment references "Chapter X, Exercise Y", find that exact content in the provided course materials and answer based on it.
-Answer EVERY question — do not skip any.
+No skipping steps. No "it is obvious that..." — explain EVERYTHING.
 
-Return JSON: {"study_version": "...complete study walkthrough for ALL questions...", "key_concepts": ["concept1", "concept2", ...]}"""
+Return JSON: {"study_version": "...complete walkthrough, one question at a time, with full explanations...", "key_concepts": ["concept1", "concept2", ...]}"""
 
 TASK_STEPS_SYSTEM = """Break this assignment into actionable steps a student can follow. Each step should be specific and concrete. Estimate minutes for each step.
 
@@ -162,13 +180,13 @@ def generate_study_guide(course_name: str, exam_title: str, materials_text: str,
 def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
-    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=8192)
+    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=16000)
 
 
 def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
-    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=8192)
+    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=16000)
 
 
 def generate_task_steps(title: str, description: str, materials_text: str, premium: bool = False) -> dict:

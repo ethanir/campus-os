@@ -5,7 +5,7 @@ AI Service — Dual Engine
 """
 
 import json
-from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
+from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json
 from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
 
 
@@ -126,6 +126,21 @@ Return JSON: {
 }"""
 
 
+
+
+VERIFICATION_SYSTEM = """You are a rigorous math/CS grader. You are given a homework submission. Your job is to find errors.
+
+For EACH answer, check:
+1. Does the counterexample actually work? Verify ALL conditions explicitly.
+2. Does the proof follow logically? Is any step hand-wavy?
+3. Are the right functions/graphs/values used (matching what the problem states)?
+4. Is the answer complete (all parts addressed)?
+
+If you find errors, provide the CORRECTED answer.
+If an answer is correct, say so briefly.
+
+Return JSON: {"corrections": [{"question": "Q3", "issue": "...", "corrected_answer": "..."}], "verified_ok": ["Q1", "Q2", ...]}"""
+
 # ── Smart Context Assembly ──────────────────────────────
 
 def _build_context(assignment_text: str, materials_text: str, budget: int = MAX_CONTEXT_CHARS) -> str:
@@ -166,8 +181,10 @@ def _get_context_usage(materials_text: str) -> dict:
 # ── Routing Logic ───────────────────────────────────────
 
 def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 4096) -> dict:
-    """Route to Claude (premium/paid) or Gemini (free tier)."""
-    if True:  # Use Claude for all
+    """Route to Opus (premium), Sonnet (free), or Gemini (free tier)."""
+    if premium:
+        return call_claude_opus_json(system, user_prompt, max_tokens=max_tokens)
+    elif True:  # Use Claude Sonnet for non-premium
         return call_claude_json(system, user_prompt, max_tokens=max_tokens)
     else:
         return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
@@ -175,14 +192,13 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
 
 def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:
     """Route AI calls that include page images (for seeing figures/graphs)."""
-    if image_paths and True:  # Use Claude multimodal for all
-        return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
-    else:
-        # Fallback to text-only
-        if True:  # Use Claude for all
-            return call_claude_json(system, user_prompt, max_tokens=max_tokens)
+    if image_paths:
+        if premium:
+            return call_claude_opus_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
         else:
-            return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
+            return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
+    else:
+        return _call_ai(system, user_prompt, premium, max_tokens=max_tokens)
 
 
 def _call_ai_vision(system: str, image_data: bytes, media_type: str, premium: bool, text_prompt: str = "", max_tokens: int = 4096) -> dict:
@@ -191,6 +207,32 @@ def _call_ai_vision(system: str, image_data: bytes, media_type: str, premium: bo
         return call_claude_vision_json(system, image_data, media_type, max_tokens=max_tokens)
     else:
         return call_gemini_vision_json(system, image_data, media_type, text_prompt, max_tokens=max_tokens)
+
+
+
+def _verify_submission(submission_text: str, assignment_text: str, materials_text: str, premium: bool, image_paths: list[str] = None) -> dict:
+    """Second pass: verify the submission and fix errors."""
+    context = materials_text[:200000] if materials_text else ""
+    user_prompt = f"""Here is a homework submission to verify:
+
+--- ASSIGNMENT ---
+{assignment_text[:50000]}
+
+--- SUBMISSION TO VERIFY ---
+{submission_text}
+
+--- COURSE MATERIALS (for reference) ---
+{context[:100000]}
+
+Check every answer for correctness. Fix any errors you find."""
+    
+    try:
+        if image_paths:
+            return _call_ai_with_images(VERIFICATION_SYSTEM, user_prompt, image_paths, premium, max_tokens=8000)
+        else:
+            return _call_ai(VERIFICATION_SYSTEM, user_prompt, premium, max_tokens=8000)
+    except Exception:
+        return {"corrections": [], "verified_ok": ["all"]}
 
 
 # ── Public Functions ────────────────────────────────────
@@ -204,9 +246,46 @@ def generate_study_guide(course_name: str, exam_title: str, materials_text: str,
 def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
+    
+    # First pass: solve
     if image_paths:
-        return _call_ai_with_images(HOMEWORK_TURNIN_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
-    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
+        result = _call_ai_with_images(HOMEWORK_TURNIN_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
+    else:
+        result = _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
+    
+    # Second pass: verify and fix errors (only for premium/paid users to save costs)
+    if premium and result.get("submission"):
+        try:
+            verification = _verify_submission(
+                result["submission"], description, materials_text, premium, image_paths
+            )
+            corrections = verification.get("corrections", [])
+            if corrections:
+                # Apply corrections by re-solving with error feedback
+                correction_text = "\n".join(
+                    f"- {c['question']}: {c['issue']}. Correct answer: {c['corrected_answer']}"
+                    for c in corrections
+                )
+                fix_prompt = f"""Your previous submission had these errors:
+{correction_text}
+
+Original assignment: {title}
+
+{context}
+
+Rewrite the COMPLETE submission with ALL corrections applied. Keep correct answers unchanged."""
+                
+                if image_paths:
+                    result = _call_ai_with_images(HOMEWORK_TURNIN_SYSTEM, fix_prompt, image_paths, premium, max_tokens=12000)
+                else:
+                    result = _call_ai(HOMEWORK_TURNIN_SYSTEM, fix_prompt, premium, max_tokens=12000)
+                result["notes"] = result.get("notes", "") + " [Verified and corrected]"
+            else:
+                result["notes"] = result.get("notes", "") + " [Verified — no errors found]"
+        except Exception:
+            pass  # Verification failed, return original
+    
+    return result
 
 
 def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:

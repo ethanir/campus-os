@@ -33,7 +33,7 @@ def call_claude_json(system_prompt: str, user_prompt: str, max_tokens: int = 409
         cleaned = cleaned.rsplit("```", 1)[0]
     cleaned = cleaned.strip()
 
-    return json.loads(cleaned)
+    return json.loads(cleaned, strict=False)
 
 
 def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: str, text_prompt: str = "", max_tokens: int = 4096) -> dict:
@@ -66,4 +66,4 @@ def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: s
         raw = raw.split("\n", 1)[1]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
-    return json.loads(raw.strip())
+    return json.loads(raw.strip(), strict=False)

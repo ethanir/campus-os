@@ -17,7 +17,7 @@ export default function LandingPage() {
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 40px", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--accent)", boxShadow: "0 0 12px var(--accent)" }} />
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>EZ SCHOOL AI</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>YOURCOURSE AI</span>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
           <Link to="/login" style={{ padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "var(--text-muted)", textDecoration: "none" }}>Log in</Link>

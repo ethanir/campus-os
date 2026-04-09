@@ -39,7 +39,7 @@ export default function AuthPage({ mode }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--accent)", boxShadow: "0 0 12px var(--accent)" }} />
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "var(--text-dim)" }}>EZ SCHOOL AI</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "var(--text-dim)" }}>YOURCOURSE AI</span>
         </div>
 
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>

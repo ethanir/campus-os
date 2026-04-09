@@ -22,7 +22,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(user_id: int) -> str:
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "exp": datetime.utcnow() + timedelta(days=30),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
@@ -34,7 +34,7 @@ def get_current_user(
 ) -> User:
     try:
         payload = jwt.decode(creds.credentials, settings.jwt_secret, algorithms=["HS256"])
-        user_id = payload.get("sub")
+        user_id = int(payload.get("sub"))
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 

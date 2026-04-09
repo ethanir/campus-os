@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./campus_os.db"
     upload_dir: str = "./uploads"
     claude_model: str = "claude-sonnet-4-20250514"
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
     max_upload_size_mb: int = 50
     jwt_secret: str = "change-this-to-a-random-secret-in-production"
 

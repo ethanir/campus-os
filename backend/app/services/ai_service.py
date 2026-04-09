@@ -89,7 +89,7 @@ Return JSON: {
 
 def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 4096) -> dict:
     """Route to Claude (premium) or Gemini (free)."""
-    if premium:
+    if True:  # Use Claude for all
         return call_claude_json(system, user_prompt, max_tokens=max_tokens)
     else:
         return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
@@ -97,7 +97,7 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
 
 def _call_ai_vision(system: str, image_data: bytes, media_type: str, premium: bool, text_prompt: str = "", max_tokens: int = 4096) -> dict:
     """Route vision calls to Claude or Gemini."""
-    if premium:
+    if True:  # Use Claude for all
         return call_claude_vision_json(system, image_data, media_type, max_tokens=max_tokens)
     else:
         return call_gemini_vision_json(system, image_data, media_type, text_prompt, max_tokens=max_tokens)

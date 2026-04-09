@@ -5,6 +5,8 @@ from pathlib import Path
 class Settings(BaseSettings):
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
     database_url: str = "sqlite:///./campus_os.db"
     upload_dir: str = "./uploads"
     claude_model: str = "claude-sonnet-4-20250514"

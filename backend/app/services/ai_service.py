@@ -6,7 +6,7 @@ AI Service — Dual Engine
 
 import json
 from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
-from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
+from app.core.groq_client import call_groq_json
 
 
 # ── Context Budget (chars) ──────────────────────────────
@@ -185,7 +185,7 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
     if premium:
         return call_claude_json(system, user_prompt, max_tokens=max_tokens)
     else:
-        return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
+        return call_groq_json(system, user_prompt, max_tokens=min(max_tokens, 8000))
 
 
 def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:

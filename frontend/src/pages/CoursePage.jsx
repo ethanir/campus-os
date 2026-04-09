@@ -8,7 +8,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import {
   getCourse, getAssignments, getMaterials, getSteps, uploadAssignment,
-  generateSteps, toggleStep, generateStudyGuide,
+  generateSteps, toggleStep, generateStudyGuide, getContextUsage, getGenerations, deleteGeneration,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
   deleteMaterial, deleteAssignment,
 } from "../api/client";
@@ -47,13 +47,15 @@ export default function CoursePage() {
   const [uploadType, setUploadType] = useState("slides");
   const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [contextUsage, setContextUsage] = useState(null);
+  const [generations, setGenerations] = useState([]);
   const fileInput = useRef(null);
   const assignmentInput = useRef(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [c, a, m] = await Promise.all([getCourse(id), getAssignments(id), getMaterials(id)]);
+        const [c, a, m] = await Promise.all([getCourse(id), getAssignments(id), getMaterials(id)]); try { const ctx = await getContextUsage(id); setContextUsage(ctx); } catch {} try { const g = await getGenerations(id); setGenerations(g); } catch {}
         setCourse(c); setAssignments(a); setMaterials(m);
         setSelectedMaterials(m.map((mat) => mat.id));
       } catch (err) { console.error(err); }
@@ -148,6 +150,17 @@ export default function CoursePage() {
         {/* Materials */}
         <div>
           <div className="flex justify-between items-center mb-3">
+          {contextUsage && (
+            <div className="mb-3 rounded-lg p-2.5" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>AI CONTEXT</span>
+                <span className="font-mono text-[9px]" style={{ color: contextUsage.used_pct > 80 ? "var(--accent-red)" : "var(--text-dim)" }}>{contextUsage.used_pct}%</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: 2, width: `${Math.min(contextUsage.used_pct, 100)}%`, background: contextUsage.used_pct > 80 ? "var(--accent-red)" : "var(--accent)", transition: "width 0.3s" }} />
+              </div>
+            </div>
+          )}
             <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>MATERIALS ({materials.length})</h2>
             <button onClick={() => setShowUpload(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>+ UPLOAD</button>
           </div>
@@ -356,6 +369,30 @@ export default function CoursePage() {
             </div>
           )}
         </Modal>
+      )}
+
+      {/* Saved AI Results */}
+      {generations.length > 0 && (
+        <div className="mt-6">
+          <h2 className="font-mono text-[10px] tracking-[2px] font-bold mb-3" style={{ color: "var(--text-dim)" }}>AI GENERATIONS ({generations.length})</h2>
+          <div className="space-y-2">
+            {generations.map((g) => (
+              <div key={g.id} className="rounded-xl p-4 cursor-pointer transition" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                onClick={() => { try { const parsed = JSON.parse(g.content); setResultModal({ title: g.title, content: parsed.submission || parsed.study_version || parsed.draft || parsed.content || JSON.stringify(parsed, null, 2), notes: typeof g.notes === "string" ? g.notes : "" }); } catch { setResultModal({ title: g.title, content: g.content, notes: g.notes || "" }); } }}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-mono text-[9px] tracking-wider font-bold px-2 py-0.5 rounded mr-2" style={{ background: `rgba(var(--accent-rgb), 0.1)`, color: "var(--accent)" }}>{g.gen_type.toUpperCase()}</span>
+                    <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{g.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs" style={{ color: "var(--text-dim)" }}>{new Date(g.created_at).toLocaleDateString()}</span>
+                    <button onClick={(e) => { e.stopPropagation(); deleteGeneration(g.id).then(() => setGenerations((prev) => prev.filter((x) => x.id !== g.id))); }} className="text-xs" style={{ color: "var(--text-dim)" }}>✕</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

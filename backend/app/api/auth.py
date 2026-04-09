@@ -96,17 +96,43 @@ def list_credit_packs():
     return CREDIT_PACKS
 
 
-@router.post("/buy-credits")
-def buy_credits(pack_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Temporary endpoint — will be replaced with Stripe webhook."""
+@router.post("/create-checkout")
+def create_checkout_session(pack_id: str, user: User = Depends(get_current_user)):
+    """Create a Stripe Checkout session for buying credits."""
+    from app.core.config import settings
+    
     pack = CREDIT_PACKS.get(pack_id)
     if not pack:
         raise HTTPException(status_code=400, detail="Invalid pack")
-    user.credits += pack["credits"]
-    user.has_purchased = True
-    user.plan = "paid"
-    db.commit()
-    return {"credits": user.credits, "added": pack["credits"], "ai_tier": "premium"}
+    
+    stripe.api_key = settings.stripe_secret_key
+    
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": pack["label"],
+                        "description": pack["description"],
+                    },
+                    "unit_amount": pack["price_cents"],
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=settings.frontend_url + "/account?payment=success",
+            cancel_url=settings.frontend_url + "/account?payment=cancelled",
+            metadata={
+                "user_id": str(user.id),
+                "pack_id": pack_id,
+                "credits": str(pack["credits"]),
+            },
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create checkout: {str(e)}")
 
 
 # ── Change Password ─────────────────────────────────────

@@ -107,9 +107,7 @@ async def upload_assignment(
         if imgs:
             page_imgs_dir = str(Path(img_output) / "page_images")
     
-    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType.COMPLETED_WORK, extracted_text=extracted, page_images_dir=page_imgs_dir)
-    db.add(mat)
-    db.commit()
+    # Assignment files are NOT added to materials - they stay as assignments only
 
     title = file.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
     assignment = Assignment(course_id=course_id, title=title, description=extracted[:10000] if extracted else "")

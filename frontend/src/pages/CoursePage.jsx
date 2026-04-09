@@ -292,7 +292,7 @@ export default function CoursePage() {
           <div className="mb-4">
             <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
             <div className="flex flex-wrap gap-1.5">
-              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "completed_work", l: "Assignment" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
+              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "completed_work", l: "Past Work" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
                 <button key={t.v} onClick={() => setUploadType(t.v)} className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
                   style={{ background: uploadType === t.v ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)", color: uploadType === t.v ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${uploadType === t.v ? "var(--accent)" : "var(--border)"}` }}>{t.l}</button>
               ))}

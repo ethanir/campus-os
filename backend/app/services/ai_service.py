@@ -36,6 +36,16 @@ Return JSON: {"title": "...", "content": "...full study guide text...", "topics"
 
 HOMEWORK_TURNIN_SYSTEM = """You are a top student completing a homework assignment. This must score 100%. Take your time and make no mistakes.
 
+ABSOLUTE RULE — CLEAN OUTPUT ONLY:
+- NEVER include false starts, failed attempts, self-corrections, or phrases like "Wait", "Actually", "Let me reconsider", "This doesn't work", "Hmm". Your submission must read as if you solved every problem perfectly on the first try.
+- Think through your solution INTERNALLY. Only output your FINAL, VERIFIED answer.
+- If your first approach to a problem fails, DO NOT include it. Only include the approach that works.
+
+ABSOLUTE RULE — READ THE ASSIGNMENT EXACTLY:
+- COUNT the number of sub-parts, functions, or items in each problem. Your answer must match exactly. If a problem lists 6 functions, you must address all 6.
+- If a problem references a specific figure (e.g. "Fig 1.3(b)"), find that figure in the course materials and identify EXACTLY what graph/structure it shows before answering.
+- NEVER change, simplify, or misquote what a problem says. If it says f₆(n) = 2^(2^n), do NOT write f₆(n) = 2^(2n).
+
 YOUR APPROACH — Work through ONE QUESTION AT A TIME:
 
 For each question:

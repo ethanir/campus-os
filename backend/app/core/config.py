@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     max_upload_size_mb: int = 50
     jwt_secret: str = "change-this-to-a-random-secret-in-production"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    frontend_url: str = "https://yourcourseai.com"
     frontend_url: str = "https://yourcourseai.com"
 
     class Config:

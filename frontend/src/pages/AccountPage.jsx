@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Zap, Crown, Sparkles, Shield, Lock, Check, Loader2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { getCreditPacks, buyCredits, changePassword } from "../api/client";
+import { getCreditPacks, createCheckout, changePassword } from "../api/client";
 
 export default function AccountPage() {
   const { user, refreshUser } = useAuth();
@@ -20,14 +20,27 @@ export default function AccountPage() {
     setBuying(packId);
     setBuySuccess(null);
     try {
-      const result = await buyCredits(packId);
-      await refreshUser();
-      setBuySuccess(`Added ${result.added} premium credits! You now have ${result.credits} credits.`);
+      const result = await createCheckout(packId);
+      // Redirect to Stripe Checkout
+      window.location.href = result.checkout_url;
     } catch (err) {
-      setBuySuccess("Failed to purchase. Try again.");
+      setBuySuccess("Failed to start checkout. Try again.");
+      setBuying(null);
     }
-    setBuying(null);
   };
+
+  // Check for payment success/cancel from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      setBuySuccess("Payment successful! Credits have been added to your account.");
+      refreshUser();
+      window.history.replaceState({}, "", "/account");
+    } else if (params.get("payment") === "cancelled") {
+      setBuySuccess("Payment was cancelled.");
+      window.history.replaceState({}, "", "/account");
+    }
+  }, []);
 
   const handleChangePassword = async () => {
     setPwLoading(true);

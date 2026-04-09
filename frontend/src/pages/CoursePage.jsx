@@ -142,7 +142,7 @@ export default function CoursePage() {
           color: user?.has_purchased ? "var(--accent)" : "var(--text-dim)",
           border: `1px solid ${user?.has_purchased ? "var(--accent)" : "var(--border)"}`,
         }}>
-          {user?.has_purchased ? "⚡ PREMIUM AI" : "STANDARD AI"}
+          {user?.has_purchased ? "⚡ VERIFIED · SONNET" : "STANDARD · GEMINI"}
         </span>
       </div>
 

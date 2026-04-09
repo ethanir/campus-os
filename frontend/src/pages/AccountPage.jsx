@@ -110,10 +110,10 @@ export default function AccountPage() {
             <div className="rounded-xl p-4" style={{ background: "var(--bg-hover)" }}>
               <div className="text-sm font-bold mb-1" style={{ color: "var(--text-muted)" }}>Standard AI (Free)</div>
               <ul className="text-xs space-y-1.5" style={{ color: "var(--text-dim)" }}>
-                <li>• Powered by Gemini Flash</li>
+                <li>• Gemini Flash AI engine</li>
                 <li>• 3 free generations</li>
-                <li>• Good for trying the platform</li>
-                <li>• May miss details on complex problems</li>
+                <li>• Great for trying the platform</li>
+                <li>• Good for simpler coursework</li>
               </ul>
             </div>
             <div className="rounded-xl p-4" style={{ background: `rgba(var(--accent-rgb), 0.04)`, border: `1px solid var(--accent)` }}>
@@ -122,10 +122,10 @@ export default function AccountPage() {
                 <Crown size={12} style={{ color: "var(--accent)" }} />
               </div>
               <ul className="text-xs space-y-1.5" style={{ color: "var(--text-muted)" }}>
-                <li>• Powered by Claude Sonnet</li>
-                <li>• Significantly more accurate</li>
-                <li>• Better at complex proofs & math</li>
-                <li>• Follows professor's notation precisely</li>
+                <li>• Claude Sonnet AI engine</li>
+                <li>• Auto-verified solutions (checked & corrected)</li>
+                <li>• Excels at complex proofs, math, and CS</li>
+                <li>• Reads figures/graphs from your textbook PDFs</li>
               </ul>
             </div>
           </div>

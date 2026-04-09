@@ -166,17 +166,17 @@ export default function LandingPage() {
               }}>RECOMMENDED</span>
             </div>
             <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 4 }}>
-              $4.99<span style={{ fontSize: 16, fontWeight: 500, color: "var(--text-muted)" }}> / 50 credits</span>
+              $4.99<span style={{ fontSize: 16, fontWeight: 500, color: "var(--text-muted)" }}> / 10 credits</span>
             </div>
-            <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600, marginBottom: 20 }}>~$0.10 per generation</div>
+            <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600, marginBottom: 20 }}>~$0.50 per generation</div>
             <div style={{ fontSize: 13, color: "var(--accent)", marginBottom: 20, padding: "8px 12px", borderRadius: 8, background: `rgba(var(--accent-rgb), 0.08)`, fontFamily: "'JetBrains Mono', monospace", border: `1px solid var(--accent)` }}>
-              Powered by Claude Sonnet
+              Claude Sonnet · Auto-Verified
             </div>
             {[
               { text: "Everything in Standard" },
-              { text: "Significantly more accurate results" },
+              { text: "Auto-verified: solutions checked & corrected" },
               { text: "Precise with professor's notation" },
-              { text: "Better at complex proofs & math" },
+              { text: "Reads figures & graphs from your PDFs" },
               { text: "Follows course methods exactly" },
             ].map(({ text }, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--text)", lineHeight: 2.2 }}>
@@ -192,7 +192,7 @@ export default function LandingPage() {
         </div>
 
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-dim)", marginTop: 20 }}>
-          Credit packs: 50 for $4.99 · 150 for $9.99 · 500 for $24.99 — credits never expire
+          Credit packs: 10 for $4.99 · 25 for $9.99 · 75 for $24.99 — credits never expire
         </p>
       </section>
 
@@ -201,7 +201,7 @@ export default function LandingPage() {
         <h2 style={{ textAlign: "center", fontSize: 32, fontWeight: 800, marginBottom: 48 }}>FAQ</h2>
         {[
           { q: "How is this different from ChatGPT or StudyX?", a: "Those tools don't know your course. They give generic answers using general knowledge. YourCourse AI stores your actual slides, textbook, and assignments — every AI generation uses YOUR course materials as context, so answers use your professor's exact methods and notation." },
-          { q: "What's the difference between Standard and Premium AI?", a: "Standard AI (Gemini Flash) is free and works well for simpler tasks. Premium AI (Claude Sonnet) is significantly more accurate, especially for complex proofs, multi-step math problems, and matching your professor's specific notation. Most students upgrade after trying their first generation." },
+          { q: "What's the difference between Standard and Premium AI?", a: "Standard AI (Gemini Flash) gives you 3 free generations to try the platform. Premium AI (Claude Sonnet) is significantly more accurate and includes auto-verification, where every turn-in solution is checked and corrected before delivery. Premium also reads figures and graphs directly from your uploaded PDFs." },
           { q: "Will my professor know I used this?", a: "The AI uses your course's actual methods and notation — the output looks like a well-prepared student's work, not like AI-generated text. It solves problems the way your class teaches, not with random methods from the internet." },
           { q: "What file types can I upload?", a: "PDF, PowerPoint (.pptx), Word documents, and plain text files. Upload slides, textbook chapters, assignment specs, syllabi, announcements — anything from your course." },
           { q: "Do credits expire?", a: "No. Buy credits whenever you need them — before midterms, finals, or whenever you have a tough assignment. They stay in your account forever." },

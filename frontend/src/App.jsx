@@ -85,7 +85,7 @@ function Sidebar() {
             </div>
             <div className="flex items-center gap-1 mt-1.5">
               <span className="font-mono text-[8px] tracking-wider font-bold" style={{ color: isPremium ? "var(--accent)" : "var(--text-dim)" }}>
-                {isPremium ? "PREMIUM AI" : "STANDARD AI"}
+                {isPremium ? "PREMIUM · VERIFIED" : "FREE · STANDARD"}
               </span>
             </div>
           </div>

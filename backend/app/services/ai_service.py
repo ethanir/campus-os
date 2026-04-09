@@ -194,7 +194,11 @@ def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], 
         if premium:
             return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
         else:
-            return call_groq_vision_json(system, user_prompt, image_paths, max_tokens=min(max_tokens, 8000))
+            try:
+                return call_groq_vision_json(system, user_prompt, image_paths, max_tokens=min(max_tokens, 8000))
+            except Exception:
+                # Fallback to text-only if images are too large
+                return call_groq_json(system, user_prompt, max_tokens=min(max_tokens, 8000))
     else:
         return _call_ai(system, user_prompt, premium, max_tokens=max_tokens)
 

@@ -38,10 +38,10 @@ def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: lis
     
     content_parts = []
     
-    # Add images (max 5 to stay within free tier limits)
+    # Add images (max 2, keep payload small for free tier)
     added = 0
     for img_path in (image_paths or []):
-        if added >= 5:
+        if added >= 2:
             break
         if not Path(img_path).exists():
             continue

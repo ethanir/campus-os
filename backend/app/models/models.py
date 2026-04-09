@@ -78,6 +78,7 @@ class Assignment(Base):
     weight = Column(Float, default=0.0)
     status = Column(Enum(AssignmentStatus), default=AssignmentStatus.NOT_STARTED)
     ai_summary = Column(Text, default="")
+    context_notes = Column(Text, default="")  # User-provided context about figures, images, etc.
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     course = relationship("Course", back_populates="assignments")

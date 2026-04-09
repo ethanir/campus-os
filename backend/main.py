@@ -37,6 +37,15 @@ app.include_router(planner.router)
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # Auto-migrate: add context_notes column if missing
+    from app.core.database import engine
+    import sqlalchemy
+    try:
+        with engine.connect() as conn:
+            conn.execute(sqlalchemy.text("ALTER TABLE assignments ADD COLUMN context_notes TEXT DEFAULT ''"))
+            conn.commit()
+    except Exception:
+        pass  # Column already exists
 
 
 @app.get("/")

@@ -79,3 +79,5 @@ export const getGeneration = (genId) => api.get(`/generations/${genId}`).then((r
 export const deleteGeneration = (genId) => api.delete(`/generations/${genId}`).then((r) => r.data);
 
 export default api;
+
+export const updateAssignmentContext = (id, notes) => api.patch(\`/assignments/\${id}/context-notes\`, { context_notes: notes }).then(r => r.data);

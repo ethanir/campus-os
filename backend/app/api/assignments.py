@@ -67,6 +67,19 @@ def delete_assignment(assignment_id: int, user: User = Depends(get_current_user)
     return {"ok": True}
 
 
+# ── Update Assignment Context Notes ─────────────────────
+
+@router.patch("/assignments/{assignment_id}/context-notes")
+def update_context_notes(assignment_id: int, data: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    _verify_course(db, user, assignment.course_id)
+    assignment.context_notes = data.get("context_notes", "")
+    db.commit()
+    return {"ok": True}
+
+
 # ── Upload Assignment File ──────────────────────────────
 
 @router.post("/courses/{course_id}/upload-assignment")
@@ -230,5 +243,6 @@ def _assignment_response(a: Assignment) -> AssignmentResponse:
     return AssignmentResponse(
         id=a.id, course_id=a.course_id, title=a.title, description=a.description,
         due_date=a.due_date, weight=a.weight, status=a.status.value, ai_summary=a.ai_summary or "",
+        context_notes=a.context_notes or "",
         step_count=len(a.steps), steps_done=sum(1 for s in a.steps if s.is_done),
     )

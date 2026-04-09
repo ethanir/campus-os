@@ -11,7 +11,7 @@ import {
   generateSteps, toggleStep, generateStudyGuide, getContextUsage, getGenerations, deleteGeneration,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
   deleteMaterial, deleteAssignment,
-} from "../api/client";
+, updateAssignmentContext} from "../api/client";
 
 function Modal({ onClose, wide, children }) {
   return createPortal(
@@ -51,6 +51,7 @@ export default function CoursePage() {
   const [generations, setGenerations] = useState([]);
   const fileInput = useRef(null);
   const assignmentInput = useRef(null);
+  const [editingContext, setEditingContext] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -218,7 +219,28 @@ export default function CoursePage() {
                     {isExp && (
                       <div className="px-3.5 pb-3.5" style={{ borderTop: "1px solid var(--border)" }}>
                         <div className="flex gap-1.5 mb-3 mt-2 flex-wrap">
-                          <button onClick={() => handleGenerateSteps(a.id)} disabled={!!aiLoading}
+                          <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>ADDITIONAL CONTEXT</label>
+                        <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>Describe figures, images, or special instructions</span>
+                      </div>
+                      <textarea
+                        value={editingContext[a.id] !== undefined ? editingContext[a.id] : (a.context_notes || "")}
+                        onChange={(e) => setEditingContext(p => ({...p, [a.id]: e.target.value}))}
+                        onBlur={async () => {
+                          const val = editingContext[a.id];
+                          if (val !== undefined && val !== (a.context_notes || "")) {
+                            await updateAssignmentContext(a.id, val);
+                            setAssignments(prev => prev.map(x => x.id === a.id ? {...x, context_notes: val} : x));
+                          }
+                        }}
+                        placeholder="e.g. Fig 1.3(a) is a 4-cycle graph (C₄). Fig 1.3(b) is a star graph K₁,₃ with center node connected to 3 leaves..."
+                        className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none resize-none"
+                        rows={2}
+                        style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)", lineHeight: 1.5 }}
+                      />
+                    </div>
+                    <button onClick={() => handleGenerateSteps(a.id)} disabled={!!aiLoading}
                             className="flex items-center gap-1 font-mono text-[8px] font-bold tracking-wider px-2.5 py-1.5 rounded-md transition disabled:opacity-50"
                             style={{ background: `rgba(var(--accent-rgb), 0.08)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
                             {aiLoading === `steps-${a.id}` ? <Loader2 size={9} className="animate-spin" /> : <Sparkles size={9} />} STEPS

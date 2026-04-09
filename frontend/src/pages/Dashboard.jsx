@@ -80,7 +80,7 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-4 text-[11px] font-mono" style={{ color: "var(--text-dim)" }}>
                 <div className="flex items-center gap-1.5"><FileText size={11} /><span>{c.material_count} file{c.material_count !== 1 ? "s" : ""}</span></div>
-                <div className="flex items-center gap-1.5"><Sparkles size={11} /><span>{c.assignment_count} task{c.assignment_count !== 1 ? "s" : ""}</span></div>
+                <div className="flex items-center gap-1.5"><Sparkles size={11} /><span>{c.assignment_count} assignment{c.assignment_count !== 1 ? "s" : ""}</span></div>
               </div>
             </Link>
           ))}

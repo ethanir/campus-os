@@ -56,6 +56,7 @@ class AssignmentResponse(BaseModel):
     weight: float
     status: str
     ai_summary: str
+    context_notes: str = ""
     step_count: int = 0
     steps_done: int = 0
 

@@ -72,3 +72,6 @@ export const generateStudyGuide = (courseId, examTitle, materialIds = []) => {
 };
 
 export default api;
+
+// ── Context Usage ──────────────────────────────────────
+export const getContextUsage = (courseId) => api.get(`/courses/${courseId}/context-usage`).then((r) => r.data);

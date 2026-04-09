@@ -164,3 +164,21 @@ def _course_response(c: Course) -> CourseResponse:
         semester=c.semester, color=c.color, created_at=c.created_at,
         material_count=len(c.materials), assignment_count=len(c.assignments),
     )
+
+
+# ── Context Usage ───────────────────────────────────────
+
+@router.get("/{course_id}/context-usage")
+def get_context_usage(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    mats = db.query(Material).filter(Material.course_id == course_id).all()
+    total_chars = sum(len(m.extracted_text or "") for m in mats)
+    max_chars = 600000
+    return {
+        "used_chars": total_chars,
+        "max_chars": max_chars,
+        "used_pct": round((total_chars / max_chars) * 100, 1),
+        "materials": [{"id": m.id, "filename": m.filename, "chars": len(m.extracted_text or "")} for m in mats],
+    }

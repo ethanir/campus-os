@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Plus, ChevronRight, X, BookOpen, Upload, Sparkles, Loader2, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { getCourses, createCourse, importFromScreenshot, deleteCourse } from "../api/client";
+import { getCourses, createCourse, deleteCourse } from "../api/client";
 
 const COLORS = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"];
 
@@ -25,13 +25,9 @@ export default function CoursesPage() {
   const { refreshUser } = useAuth();
   const [courses, setCourses] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: "", code: "", professor: "", semester: "Spring 2026", color: COLORS[0] });
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState(null);
-  const importInput = useRef(null);
 
   useEffect(() => { getCourses().then(setCourses).catch(console.error); }, []);
 
@@ -47,22 +43,6 @@ export default function CoursesPage() {
     setSaving(false);
   };
 
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setShowImport(true); setImporting(true); setImportResult(null);
-    try {
-      const result = await importFromScreenshot(file);
-      setImportResult(result);
-      const updated = await getCourses();
-      setCourses(updated);
-      refreshUser();
-    } catch (err) {
-      setImportResult({ error: err.response?.data?.detail || "Failed to parse screenshot" });
-    }
-    setImporting(false);
-    if (importInput.current) importInput.current.value = "";
-  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -86,44 +66,6 @@ export default function CoursesPage() {
           </button>
         </div>
       </div>
-
-      {/* Import Modal */}
-      {showImport && (
-        <Modal onClose={() => { if (!importing) { setShowImport(false); setImportResult(null); } }}>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Import from Screenshot</h2>
-            {!importing && <button onClick={() => { setShowImport(false); setImportResult(null); }} style={{ color: "var(--text-muted)" }}><X size={18} /></button>}
-          </div>
-          {importing && (
-            <div className="py-10 text-center">
-              <Loader2 size={28} className="animate-spin mx-auto mb-3" style={{ color: "var(--accent)" }} />
-              <p className="text-sm font-medium" style={{ color: "var(--text)" }}>AI is reading your schedule...</p>
-            </div>
-          )}
-          {importResult && !importResult.error && (
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Check size={16} style={{ color: "var(--accent-green)" }} />
-                <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{importResult.created?.length || 0} courses imported</span>
-              </div>
-              {importResult.created?.map((c, i) => (
-                <div key={i} className="rounded-lg p-3 mb-2" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
-                  <div className="text-sm font-medium" style={{ color: "var(--text)" }}>{c.code} — {c.name}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{c.professor || "No professor"}</div>
-                </div>
-              ))}
-              {importResult.skipped?.length > 0 && <p className="text-xs mt-2" style={{ color: "var(--text-dim)" }}>Skipped: {importResult.skipped.join(", ")}</p>}
-              <button onClick={() => { setShowImport(false); setImportResult(null); }} className="w-full mt-4 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg" style={{ background: "var(--accent)", color: "var(--bg)" }}>DONE</button>
-            </div>
-          )}
-          {importResult?.error && (
-            <div>
-              <p className="text-sm" style={{ color: "var(--accent-red)" }}>{importResult.error}</p>
-              <button onClick={() => { setShowImport(false); setImportResult(null); }} className="w-full mt-4 font-mono text-xs font-bold py-2.5 rounded-lg" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>CLOSE</button>
-            </div>
-          )}
-        </Modal>
-      )}
 
       {/* Create Modal */}
       {showForm && (
@@ -177,10 +119,10 @@ export default function CoursesPage() {
               <BookOpen size={24} style={{ color: "var(--accent)" }} />
             </div>
             <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>No courses yet</h2>
-            <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>Add courses manually or import from a screenshot.</p>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>Add your courses to get started.</p>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {[{ icon: title: "Screenshot Import", desc: "Upload a screenshot of your schedule" }, { icon: BookOpen, title: "Upload Materials", desc: "Slides, textbooks, assignments" }, { icon: Sparkles, title: "AI Generates", desc: "Study guides, homework, explanations" }].map(({ icon: Icon, title, desc }, i) => (
+            {[{ icon: BookOpen, title: "Add Courses", desc: "Add your courses manually" }, { icon: Upload, title: "Upload Materials", desc: "Slides, textbooks, assignments" }, { icon: Sparkles, title: "AI Generates", desc: "Study guides, homework, explanations" }].map(({ icon: Icon, title, desc }, i) => (
               <div key={i} className="rounded-xl p-4 text-center" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
                 <div className="w-9 h-9 rounded-lg mx-auto mb-3 flex items-center justify-center" style={{ background: `rgba(var(--accent-rgb), 0.08)` }}><Icon size={16} style={{ color: "var(--accent)" }} /></div>
                 <div className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>{title}</div>

@@ -44,7 +44,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
-              { icon: BookOpen, title: "Add Courses", desc: "Import from a screenshot or add manually" },
+              { icon: BookOpen, title: "Add Courses", desc: "Add your courses manually to get started" },
               { icon: FileText, title: "Upload Everything", desc: "Slides, textbooks, assignments, announcements" },
               { icon: Sparkles, title: "AI Generates", desc: "Study guides, completed homework, explanations" },
             ].map(({ icon: Icon, title, desc }, i) => (

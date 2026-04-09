@@ -85,7 +85,7 @@ export default function LandingPage() {
             { icon: GraduationCap, color: "var(--accent)", title: "Exam Study Guides", desc: "Turns all your slides and textbook chapters into a massive study guide. Every theorem, problem type, formula, and worked example." },
             { icon: Upload, color: "var(--accent-pink)", title: "Upload Anything", desc: "PDFs, slides, textbooks, assignment specs, announcements. The AI reads everything and uses it as context for every generation." },
             { icon: Sparkles, color: "var(--accent)", title: "Course-Specific AI", desc: "Not generic answers. Every response is grounded in YOUR actual course materials, YOUR professor's methods, YOUR notation." },
-            { icon: Zap, color: "#FFA35A", title: "Screenshot Import", desc: "Screenshot your Blackboard or Banner schedule. AI reads it and auto-creates all your courses in seconds." },
+            { icon: Zap, color: "#FFA35A", title: "Premium Reads Figures", desc: "Premium AI can see graphs, diagrams, and figures directly from your uploaded textbook PDFs. Free tier is text-only." },
           ].map(({ icon: Icon, color, title, desc }, i) => (
             <div key={i} style={{ padding: 24, borderRadius: 16, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: `${color}15`, marginBottom: 16 }}>
@@ -103,7 +103,7 @@ export default function LandingPage() {
         <h2 style={{ textAlign: "center", fontSize: 32, fontWeight: 800, marginBottom: 48 }}>How it works</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 32 }}>
           {[
-            { step: "1", title: "Add your courses", desc: "Import from a schedule screenshot or add manually. Takes 10 seconds." },
+            { step: "1", title: "Add your courses", desc: "Add your courses manually. Takes 10 seconds." },
             { step: "2", title: "Upload materials", desc: "Drop in your slides, textbook chapters, assignment PDFs, announcements — everything from your class." },
             { step: "3", title: "Generate anything", desc: "Turn-in ready homework, study guides, step-by-step explanations — all using YOUR course content and professor's methods." },
           ].map(({ step, title, desc }, i) => (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Plus, ChevronRight, X, BookOpen, Upload, Sparkles, Camera, Loader2, Check, Trash2 } from "lucide-react";
+import { Plus, ChevronRight, X, BookOpen, Upload, Sparkles, Loader2, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { getCourses, createCourse, importFromScreenshot, deleteCourse } from "../api/client";
 
@@ -78,12 +78,7 @@ export default function CoursesPage() {
           <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>{courses.length} course{courses.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => importInput.current?.click()}
-            className="flex items-center gap-2 font-mono text-xs font-bold tracking-wider px-4 py-2.5 rounded-lg transition"
-            style={{ border: "1px solid var(--border)", color: "var(--text-muted)", background: "var(--bg-hover)" }}>
-            <Camera size={14} /> IMPORT
-          </button>
-          <input ref={importInput} type="file" accept="image/*" className="hidden" onChange={handleImport} />
+
           <button onClick={() => setShowForm(true)}
             className="flex items-center gap-2 font-mono text-xs font-bold tracking-wider px-4 py-2.5 rounded-lg transition"
             style={{ background: "var(--accent)", color: "var(--bg)" }}>
@@ -185,7 +180,7 @@ export default function CoursesPage() {
             <p className="text-sm max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>Add courses manually or import from a screenshot.</p>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {[{ icon: Camera, title: "Screenshot Import", desc: "Upload a screenshot of your schedule" }, { icon: BookOpen, title: "Upload Materials", desc: "Slides, textbooks, assignments" }, { icon: Sparkles, title: "AI Generates", desc: "Study guides, homework, explanations" }].map(({ icon: Icon, title, desc }, i) => (
+            {[{ icon: title: "Screenshot Import", desc: "Upload a screenshot of your schedule" }, { icon: BookOpen, title: "Upload Materials", desc: "Slides, textbooks, assignments" }, { icon: Sparkles, title: "AI Generates", desc: "Study guides, homework, explanations" }].map(({ icon: Icon, title, desc }, i) => (
               <div key={i} className="rounded-xl p-4 text-center" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
                 <div className="w-9 h-9 rounded-lg mx-auto mb-3 flex items-center justify-center" style={{ background: `rgba(var(--accent-rgb), 0.08)` }}><Icon size={16} style={{ color: "var(--accent)" }} /></div>
                 <div className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>{title}</div>

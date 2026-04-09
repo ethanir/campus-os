@@ -71,7 +71,7 @@ export default function CoursePage() {
   // AI calls with credit refresh
   const aiCall = async (key, fn) => {
     setAiLoading(key);
-    try { const r = await fn(); refreshUser(); return r; }
+    try { const r = await fn(); refreshUser(); getGenerations(id).then(setGenerations).catch(() => {}); return r; }
     catch (err) {
       const detail = err.response?.data?.detail || "Failed";
       setResultModal({ title: "Error", content: detail });

@@ -43,7 +43,8 @@ def create_study_guide(
         raise HTTPException(status_code=400, detail="No materials selected.")
 
     combined_text = "\n\n".join(f"[{m.material_type.value}: {m.filename}]\n{m.extracted_text}" for m in materials if m.extracted_text)
-    result = generate_study_guide(course.name, exam_title, combined_text)
+    premium = user.has_purchased
+    result = generate_study_guide(course.name, exam_title, combined_text, premium=premium)
 
     guide = StudyGuide(course_id=course_id, title=result.get("title", f"Study Guide: {exam_title}"), content=result.get("content", ""), topics_covered=json.dumps(result.get("topics", [])))
     db.add(guide)

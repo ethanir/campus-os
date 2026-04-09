@@ -14,7 +14,8 @@ export const register = (data) => api.post("/auth/register", data).then((r) => r
 export const login = (data) => api.post("/auth/login", data).then((r) => r.data);
 export const getMe = () => api.get("/auth/me").then((r) => r.data);
 export const getCreditPacks = () => api.get("/auth/credit-packs").then((r) => r.data);
-export const addCredits = (packId) => api.post(`/auth/add-credits?pack_id=${packId}`).then((r) => r.data);
+export const buyCredits = (packId) => api.post(`/auth/buy-credits?pack_id=${packId}`).then((r) => r.data);
+export const changePassword = (data) => api.post("/auth/change-password", data).then((r) => r.data);
 
 // ── Courses ────────────────────────────────────────────
 export const getCourses = () => api.get("/courses").then((r) => r.data);

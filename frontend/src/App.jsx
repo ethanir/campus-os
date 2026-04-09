@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Sun, Moon, Code2, Palette, LogOut, Zap } from "lucide-react";
+import { Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { LayoutDashboard, BookOpen, Sun, Moon, Code2, Palette, LogOut, Zap, User, Crown } from "lucide-react";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import LandingPage from "./pages/LandingPage";
@@ -8,10 +8,12 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import CoursePage from "./pages/CoursePage";
 import CoursesPage from "./pages/CoursesPage";
+import AccountPage from "./pages/AccountPage";
 
 const NAV = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/courses", icon: BookOpen, label: "Courses" },
+  { to: "/account", icon: User, label: "Account" },
 ];
 
 const THEME_ICONS = { dark: Moon, light: Sun, code: Code2 };
@@ -49,6 +51,8 @@ function ThemeSwitcher() {
 
 function Sidebar() {
   const { user, logout } = useAuth();
+  const isPremium = user?.has_purchased;
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-52 flex flex-col z-50 border-r"
       style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
@@ -59,17 +63,31 @@ function Sidebar() {
         </div>
       </div>
 
-      {/* Credits display */}
+      {/* Credits + Tier display */}
       {user && (
-        <div className="mx-3 mb-4 px-3 py-2.5 rounded-lg" style={{ background: `rgba(var(--accent-rgb), 0.06)`, border: `1px solid rgba(var(--accent-rgb), 0.15)` }}>
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={12} style={{ color: "var(--accent)" }} />
-            <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: "var(--accent)" }}>
-              {user.credits} CREDITS
-            </span>
-          </div>
-          <div style={{ height: 3, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${Math.min((user.credits / 50) * 100, 100)}%`, background: "var(--accent)", borderRadius: 2, transition: "width 0.3s" }} />
+        <div className="mx-3 mb-4">
+          <div className="px-3 py-2.5 rounded-lg" style={{
+            background: isPremium ? `rgba(var(--accent-rgb), 0.06)` : "var(--bg-hover)",
+            border: `1px solid ${isPremium ? `rgba(var(--accent-rgb), 0.2)` : "var(--border)"}`,
+          }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              {isPremium ? <Crown size={11} style={{ color: "var(--accent)" }} /> : <Zap size={11} style={{ color: "var(--text-dim)" }} />}
+              <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: isPremium ? "var(--accent)" : "var(--text-dim)" }}>
+                {user.credits} CREDITS
+              </span>
+            </div>
+            <div style={{ height: 3, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 2, transition: "width 0.3s",
+                width: `${Math.min((user.credits / 50) * 100, 100)}%`,
+                background: isPremium ? "var(--accent)" : "var(--text-dim)",
+              }} />
+            </div>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="font-mono text-[8px] tracking-wider font-bold" style={{ color: isPremium ? "var(--accent)" : "var(--text-dim)" }}>
+                {isPremium ? "PREMIUM AI" : "STANDARD AI"}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -126,15 +144,14 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public routes */}
       <Route path="/" element={user ? <Navigate to="/dashboard" /> : <LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <AuthPage mode="login" />} />
       <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <AuthPage mode="signup" />} />
 
-      {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
       <Route path="/courses" element={<ProtectedRoute><AppLayout><CoursesPage /></AppLayout></ProtectedRoute>} />
       <Route path="/courses/:id" element={<ProtectedRoute><AppLayout><CoursePage /></AppLayout></ProtectedRoute>} />
+      <Route path="/account" element={<ProtectedRoute><AppLayout><AccountPage /></AppLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

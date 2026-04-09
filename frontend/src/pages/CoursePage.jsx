@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
-  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Upload, Trash2,
+  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Upload, Trash2, Crown,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -126,7 +126,7 @@ export default function CoursePage() {
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>{course.name}</h1>
       <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>{course.professor}</p>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex items-center gap-3 mb-6">
         <button onClick={() => setShowStudyGuideSetup(true)} disabled={aiLoading === "study-guide" || materials.length === 0}
           className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg transition disabled:opacity-50"
           style={{ background: `rgba(var(--accent-rgb), 0.1)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
@@ -134,6 +134,13 @@ export default function CoursePage() {
           {aiLoading === "study-guide" ? "GENERATING..." : "STUDY GUIDE"}
           <span className="opacity-60">1 credit</span>
         </button>
+        <span className="font-mono text-[8px] font-bold tracking-wider px-2 py-1 rounded-md" style={{
+          background: user?.has_purchased ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)",
+          color: user?.has_purchased ? "var(--accent)" : "var(--text-dim)",
+          border: `1px solid ${user?.has_purchased ? "var(--accent)" : "var(--border)"}`,
+        }}>
+          {user?.has_purchased ? "⚡ PREMIUM AI" : "STANDARD AI"}
+        </span>
       </div>
 
       {/* Two columns */}

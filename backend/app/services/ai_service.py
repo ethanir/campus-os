@@ -1,341 +1,144 @@
 """
-AI Service — the brain of Campus OS.
-
-Contains all Claude API prompt chains for:
-- Syllabus parsing → deadlines + assignments
-- Assignment → actionable task steps
-- Lecture slides → exam study guide
-- Assignment + context → first draft
-- All assignments → weekly action plan
+AI Service — Dual Engine
+  Free tier  → Gemini Flash (costs $0)
+  Paid tier  → Claude Sonnet (premium quality)
 """
 
 import json
-from datetime import datetime
-
-from app.core.claude_client import call_claude_json, call_claude
-
-
-# ── Syllabus Parsing ────────────────────────────────────
-
-SYLLABUS_SYSTEM = """You are an expert academic assistant that parses course syllabi.
-Extract ALL assignments, exams, quizzes, and deadlines from the syllabus text.
-For each item, determine:
-- title: exact name as listed
-- description: brief summary of what's required
-- due_date: ISO format (YYYY-MM-DDTHH:MM:SS) or null if not specified
-- weight: percentage of final grade as a decimal (e.g., 10% = 10.0), 0 if not listed
-
-Also extract:
-- grading_breakdown: object mapping category names to percentages
-- course_policies: brief summary of important policies (late work, attendance, etc.)
-
-Return JSON with this exact structure:
-{
-  "assignments": [
-    {"title": "...", "description": "...", "due_date": "...", "weight": 0.0}
-  ],
-  "grading_breakdown": {"Homework": 30, "Midterm": 20, ...},
-  "course_policies": "..."
-}"""
+from app.core.claude_client import call_claude_json, call_claude_vision_json
+from app.core.gemini_client import call_gemini_json, call_gemini_vision_json
 
 
-def parse_syllabus(syllabus_text: str, course_name: str) -> dict:
-    """Parse a syllabus and extract all assignments and deadlines."""
-    prompt = f"""Parse this syllabus for {course_name}. Extract every assignment, exam, quiz, project, and deadline.
+# ── System Prompts ──────────────────────────────────────
 
-SYLLABUS TEXT:
-{syllabus_text[:15000]}"""
+STUDY_GUIDE_SYSTEM = """You are a world-class study-guide creator. Given course materials (lecture slides, textbook excerpts, notes), produce an EXTREMELY thorough and comprehensive study guide.
 
-    return call_claude_json(SYLLABUS_SYSTEM, prompt)
+Your study guide MUST include:
+1. **Exam Overview** — what topics are covered, what to expect
+2. **Key Concepts** — every single concept explained clearly with examples
+3. **Theorems, Proofs & Formulas** — every theorem stated precisely, proof techniques explained, all formulas listed
+4. **Problem Types** — every type of problem that could appear, with worked examples
+5. **Step-by-Step Worked Examples** — at least 3-5 detailed worked problems using the EXACT methods from the course materials
+6. **Practice Problems** — additional problems for self-testing
+7. **Common Mistakes & Pitfalls** — what students typically get wrong
+8. **Quick Reference Sheet** — condensed summary of all key formulas and definitions
 
+CRITICAL: Use ONLY methods, notation, and terminology from the provided course materials. Do NOT introduce outside techniques. Match the professor's exact style.
 
-# ── Task Step Generation ────────────────────────────────
+Return JSON: {"title": "...", "content": "...full study guide text...", "topics": ["topic1", "topic2", ...]}"""
 
-STEPS_SYSTEM = """You are an expert at breaking down academic assignments into clear, actionable steps.
-Given an assignment description and any relevant course materials, generate a step-by-step
-plan that a student can follow to complete the assignment.
+HOMEWORK_TURNIN_SYSTEM = """You are completing homework for a student. Your submission must be TURN-IN READY — formatted exactly as a top student in this class would submit it.
 
-Each step should be:
-- Specific and actionable (not vague like "work on the assignment")
-- Ordered logically (read first, then plan, then execute, then review)
-- Include time estimates in minutes
+CRITICAL RULES:
+- Use ONLY methods, notation, and techniques from the provided course materials
+- Match the professor's exact notation and style
+- Show all required work (not more, not less)
+- Format cleanly as if handwritten/typed for submission
+- If the professor uses specific variable names, theorem names, or problem-solving frameworks, use those EXACTLY
+- Do NOT use techniques not covered in the materials, even if you know them
 
-For proof-based assignments: include steps for understanding the problem, identifying the proof
-technique, writing the formal proof, and verifying correctness.
+Return JSON: {"submission": "...complete turn-in ready work...", "notes": "...brief note about approach used..."}"""
 
-For coding assignments: include setup, implementation phases, testing, and documentation.
+HOMEWORK_STUDY_SYSTEM = """You are a patient tutor helping a student understand their homework. For each problem, provide:
 
-For essays/reports: include research, outlining, drafting sections, revision, and formatting.
+1. **What concept applies** — identify which topic/theorem from class is being tested
+2. **Why that concept applies** — explain the reasoning for choosing this approach
+3. **Step-by-step solution** — solve it completely, explaining EVERY step
+4. **Intuition** — help the student understand WHY each step works
+5. **Common mistakes** — what students typically get wrong on this type of problem
+6. **Connection to course** — reference which lecture/chapter this came from
 
-Return JSON:
-{
-  "steps": [
-    {"text": "...", "estimated_minutes": 30}
-  ]
-}"""
+Use ONLY methods from the provided course materials. Match the professor's notation.
 
+Return JSON: {"study_version": "...complete study walkthrough...", "key_concepts": ["concept1", "concept2", ...]}"""
 
-def generate_task_steps(
-    assignment_title: str,
-    assignment_description: str,
-    course_materials_context: str = "",
-) -> dict:
-    """Generate actionable task steps for an assignment."""
-    prompt = f"""Break down this assignment into actionable steps:
+TASK_STEPS_SYSTEM = """Break this assignment into actionable steps a student can follow. Each step should be specific and concrete. Estimate minutes for each step.
 
-ASSIGNMENT: {assignment_title}
-DESCRIPTION: {assignment_description}
+Return JSON: {"steps": [{"text": "...", "estimated_minutes": 30}, ...]}"""
 
-RELEVANT COURSE MATERIALS:
-{course_materials_context[:10000] if course_materials_context else "No additional context provided."}"""
+DRAFT_SYSTEM = """Write a first draft for this assignment using the course materials as context. Use the professor's methods and notation.
 
-    return call_claude_json(STEPS_SYSTEM, prompt)
+Return JSON: {"draft": "...complete draft...", "notes": "...approach used..."}"""
 
+SCHEDULE_SCREENSHOT_SYSTEM = """You are analyzing a screenshot of a student's course schedule (from Blackboard, Banner, or similar).
 
-# ── Study Guide Generation ──────────────────────────────
-
-STUDY_GUIDE_SYSTEM = """You are the most thorough, detail-obsessed tutor alive. A student is about to take an exam and has uploaded ALL their course materials to you — lecture slides, textbook chapters, past assignments, announcements, everything.
-
-Your job is to create the ULTIMATE study guide. This is not a summary. This is a comprehensive, detailed guide that covers EVERYTHING the student needs to know.
+Extract ONLY courses for the CURRENT semester. For each course extract:
+- code (e.g., "CS 401")
+- name (e.g., "Computer Algorithms")
+- professor (if visible)
+- notes (section number, time, room if visible)
 
 Rules:
-- Go through EVERY SINGLE piece of material provided. Do not skip anything.
-- For every theorem, definition, algorithm, or concept mentioned: explain it, give the formal definition, show when/how it's used, and provide an example.
-- For every proof technique used in lectures or assignments: explain the technique, show the pattern, and give a template the student can follow.
-- For every type of problem that appeared in homework or slides: show how to solve it step by step.
-- Include ALL formulas, ALL definitions, ALL key terms.
-- If announcements mention "focus on X" or "this will be on the exam" — highlight those prominently.
-- Create practice problems that mirror what the professor has assigned.
-- Include common mistakes and how to avoid them.
-- Organize by topic, not by lecture number.
+- Deduplicate — if a course has both lecture and lab, combine into one entry
+- Skip courses that appear to be from past semesters
+- Extract the semester name if visible
 
-Structure:
-1. EXAM OVERVIEW — What topics are covered, format expectations
-2. KEY CONCEPTS & DEFINITIONS — Every single one, with explanations
-3. THEOREMS & PROOFS — Full statements, proof techniques used, when to apply them
-4. PROBLEM TYPES & HOW TO SOLVE THEM — Step-by-step for each type
-5. WORKED EXAMPLES — Detailed solutions to representative problems
-6. PRACTICE PROBLEMS — With full solutions
-7. COMMON MISTAKES & PITFALLS
-8. QUICK REFERENCE — Formulas, definitions, key facts in condensed form
+Return JSON: {"semester": "Spring 2026", "courses": [{"code": "CS 401", "name": "Computer Algorithms", "professor": "Dr. Smith", "notes": "Section 001, MWF 10:00"}]}"""
 
-Return JSON:
-{
-  "title": "Study Guide: ...",
-  "topics": ["topic1", "topic2", ...],
-  "content": "Full markdown study guide content — be EXTREMELY thorough and detailed"
+SYLLABUS_SYSTEM = """Parse this syllabus and extract key information.
+
+Return JSON: {
+  "assignments": [{"title": "...", "due_date": "YYYY-MM-DD", "weight": 10.0, "description": "..."}],
+  "grading": {"A": "90-100", "B": "80-89", ...},
+  "policies": ["..."],
+  "office_hours": "..."
 }"""
 
 
-def generate_study_guide(
-    course_name: str,
-    exam_title: str,
-    materials_text: str,
-) -> dict:
-    """Generate a comprehensive exam study guide from course materials."""
-    prompt = f"""Create the most thorough, comprehensive study guide possible for:
+# ── Routing Logic ───────────────────────────────────────
 
-COURSE: {course_name}
-EXAM: {exam_title}
-
-Go through EVERY piece of material below. Do not skip or summarize — cover everything in detail. The student is counting on this to be complete.
-
-COURSE MATERIALS:
-{materials_text[:100000]}"""
-
-    return call_claude_json(STUDY_GUIDE_SYSTEM, prompt, max_tokens=8192)
+def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 4096) -> dict:
+    """Route to Claude (premium) or Gemini (free)."""
+    if premium:
+        return call_claude_json(system, user_prompt, max_tokens=max_tokens)
+    else:
+        return call_gemini_json(system, user_prompt, max_tokens=max_tokens)
 
 
-# ── Homework Completion ─────────────────────────────────
-
-HOMEWORK_TURNIN_SYSTEM = """You are an expert student completing a homework assignment. You have access to all the course materials — lecture slides, textbook chapters, and past work.
-
-Your job is to produce a TURN-IN READY submission that would earn 100%. This means:
-- Follow the professor's instructions EXACTLY.
-- Use the notation, terminology, and methods taught in class (from the provided materials).
-- For proofs: use the proof techniques from lectures. Structure them formally with clear statements, assumptions, and conclusions. Use the exact format the professor expects.
-- For coding: write clean, well-documented code that follows class conventions.
-- For written answers: be precise, thorough, and match the academic tone expected.
-- For math: show all work, use proper notation as taught in the course.
-- This should look like it was written by a top student in the class who attended every lecture.
-
-Do NOT use techniques or knowledge not covered in the provided course materials unless absolutely necessary.
-
-Return JSON:
-{
-  "submission": "The complete, ready-to-submit homework in markdown. Every problem answered completely.",
-  "notes": "Brief notes about any assumptions or areas where the student should double-check."
-}"""
+def _call_ai_vision(system: str, image_data: bytes, media_type: str, premium: bool, text_prompt: str = "", max_tokens: int = 4096) -> dict:
+    """Route vision calls to Claude or Gemini."""
+    if premium:
+        return call_claude_vision_json(system, image_data, media_type, max_tokens=max_tokens)
+    else:
+        return call_gemini_vision_json(system, image_data, media_type, text_prompt, max_tokens=max_tokens)
 
 
-HOMEWORK_STUDY_SYSTEM = """You are an expert tutor helping a student LEARN by working through their homework. You have access to all the course materials — lecture slides, textbook chapters, and past work.
+# ── Public Functions ────────────────────────────────────
 
-Your job is to produce a DETAILED LEARNING VERSION of the homework. For every single problem:
-1. Start by explaining what the problem is asking in plain English.
-2. Identify which concept/theorem/technique from the course applies and WHY.
-3. Show the complete solution step by step, explaining every single step — why you're doing it, what rule you're applying, what would happen if you did something different.
-4. After solving, explain the intuition — why does this answer make sense?
-5. Point out common mistakes students make on this type of problem.
-6. If relevant, connect it to other topics in the course.
-
-This should read like a patient tutor sitting next to the student, walking them through everything. No skipping steps. No "it's obvious that..." — explain EVERYTHING.
-
-Return JSON:
-{
-  "study_version": "The complete homework with detailed explanations for every problem in markdown.",
-  "key_concepts": ["List of key concepts the student should make sure they understand"]
-}"""
+def generate_study_guide(course_name: str, exam_title: str, materials_text: str, premium: bool = False) -> dict:
+    context = materials_text[:100000]
+    user_prompt = f"Course: {course_name}\nExam: {exam_title}\n\n--- COURSE MATERIALS ---\n{context}"
+    return _call_ai(STUDY_GUIDE_SYSTEM, user_prompt, premium, max_tokens=8192)
 
 
-def generate_homework_turnin(
-    assignment_title: str,
-    assignment_description: str,
-    course_materials_context: str = "",
-) -> dict:
-    """Generate a turn-in ready homework submission."""
-    prompt = f"""Complete this homework assignment as a top student would. Use ONLY the methods and notation from the course materials provided.
-
-ASSIGNMENT: {assignment_title}
-INSTRUCTIONS: {assignment_description}
-
-COURSE MATERIALS (lectures, textbook, past work):
-{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
-
-    return call_claude_json(HOMEWORK_TURNIN_SYSTEM, prompt, max_tokens=8192)
+def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+    context = materials_text[:100000]
+    user_prompt = f"Assignment: {title}\n\n--- ASSIGNMENT ---\n{description}\n\n--- COURSE MATERIALS ---\n{context}"
+    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=8192)
 
 
-def generate_homework_study(
-    assignment_title: str,
-    assignment_description: str,
-    course_materials_context: str = "",
-) -> dict:
-    """Generate a detailed learning version of the homework."""
-    prompt = f"""Work through this homework assignment step by step, explaining EVERYTHING in detail so the student can learn from it.
-
-ASSIGNMENT: {assignment_title}
-INSTRUCTIONS: {assignment_description}
-
-COURSE MATERIALS (lectures, textbook, past work):
-{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
-
-    return call_claude_json(HOMEWORK_STUDY_SYSTEM, prompt, max_tokens=8192)
+def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+    context = materials_text[:100000]
+    user_prompt = f"Assignment: {title}\n\n--- ASSIGNMENT ---\n{description}\n\n--- COURSE MATERIALS ---\n{context}"
+    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=8192)
 
 
-# ── Draft Generation (legacy, kept for compatibility) ───
-
-DRAFT_SYSTEM = """You are an expert academic writing assistant.
-Given an assignment specification and relevant course materials, generate a high-quality
-first draft that follows the professor's exact instructions.
-
-For proof-based work: use proper mathematical notation, state assumptions clearly,
-and structure proofs formally.
-
-For coding: write clean, commented code with proper structure.
-
-For essays: use academic tone, cite relevant course concepts, and follow any formatting requirements.
-
-The draft should be substantive and ready for the student to review and refine — not a skeleton.
-
-Return JSON:
-{
-  "draft": "Full draft content in markdown",
-  "notes": "Notes about assumptions made, areas the student should verify, etc."
-}"""
+def generate_task_steps(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+    context = materials_text[:20000]
+    user_prompt = f"Assignment: {title}\n\n{description}\n\nContext:\n{context}"
+    return _call_ai(TASK_STEPS_SYSTEM, user_prompt, premium, max_tokens=2048)
 
 
-def generate_draft(
-    assignment_title: str,
-    assignment_description: str,
-    course_materials_context: str = "",
-) -> dict:
-    """Generate a first draft for an assignment."""
-    prompt = f"""Generate a first draft for this assignment:
-
-ASSIGNMENT: {assignment_title}
-INSTRUCTIONS: {assignment_description}
-
-COURSE MATERIALS FOR CONTEXT:
-{course_materials_context[:100000] if course_materials_context else "No additional context."}"""
-
-    return call_claude_json(DRAFT_SYSTEM, prompt, max_tokens=8192)
+def generate_draft(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
+    context = materials_text[:80000]
+    user_prompt = f"Assignment: {title}\n\n{description}\n\nContext:\n{context}"
+    return _call_ai(DRAFT_SYSTEM, user_prompt, premium, max_tokens=4096)
 
 
-# ── Weekly Plan Generation ──────────────────────────────
-
-WEEKLY_PLAN_SYSTEM = """You are an expert academic planner.
-Given a list of upcoming assignments with deadlines and weights, create an optimal weekly plan.
-
-Prioritization rules:
-1. Urgent + high weight → do first
-2. Break large tasks across multiple days
-3. Leave buffer day (usually Sunday)
-4. Assign 3-5 hours of work per day max
-5. Front-load the week for high-priority items
-
-Return JSON:
-{
-  "days": [
-    {
-      "day": "Mon",
-      "date": "2026-04-08",
-      "tasks": [
-        {"text": "CS 401 HW5 — finish recurrence relation", "course_code": "CS 401", "minutes": 90}
-      ]
-    }
-  ]
-}"""
+def parse_schedule_screenshot(image_data: bytes, media_type: str, premium: bool = False) -> dict:
+    return _call_ai_vision(SCHEDULE_SCREENSHOT_SYSTEM, image_data, media_type, premium, text_prompt="Extract all courses from this schedule screenshot.")
 
 
-def generate_weekly_plan(
-    assignments_json: list[dict],
-    week_start: str,
-) -> dict:
-    """Generate an optimized weekly plan from upcoming assignments."""
-    prompt = f"""Create an optimal weekly plan starting {week_start}.
-
-UPCOMING ASSIGNMENTS:
-{json.dumps(assignments_json, indent=2)}
-
-Today is {datetime.now().strftime('%A, %B %d, %Y')}. Prioritize by urgency and grade weight."""
-
-    return call_claude_json(WEEKLY_PLAN_SYSTEM, prompt)
-
-
-# ── Schedule Screenshot Parsing ─────────────────────────
-
-SCHEDULE_SCREENSHOT_SYSTEM = """You are an expert at reading university course schedules from screenshots.
-You will be shown a screenshot of a student's course list, registration page, or schedule.
-
-Your job is to extract ONLY the CURRENT/ACTIVE semester courses. Rules:
-- The current semester is Spring 2026.
-- IGNORE any courses marked "Closed" or from past semesters (Fall 2025, Spring 2025, etc.)
-- ONLY extract courses with status "Open", "Registered", or that are clearly active.
-- If a course has a lab section (like "CS 401, 0" lecture + "CS 401, 1" lab), treat it as ONE course. Add a note like "Has lab section" but do NOT create a duplicate entry.
-- If a course is a seminar with 0 credit hours (like CS 499 Professional Development Seminar), still include it but note it's 0 credits.
-- Extract the course code (e.g., "CS 401"), the full course title, and the professor name if visible.
-- If professor name is not visible, leave it as empty string.
-
-Return JSON:
-{
-  "semester": "Spring 2026",
-  "courses": [
-    {
-      "code": "CS 401",
-      "name": "Computer Algorithms I",
-      "professor": "Ajay Kshemkalyani",
-      "notes": "3 credit hours, Lecture-Discussion"
-    }
-  ]
-}"""
-
-
-def parse_schedule_screenshot(image_data: bytes, media_type: str) -> dict:
-    """Parse a screenshot of a course schedule and extract active courses."""
-    from app.core.claude_client import call_claude_vision_json
-
-    return call_claude_vision_json(
-        SCHEDULE_SCREENSHOT_SYSTEM,
-        image_data,
-        media_type,
-        "Extract all ACTIVE courses from this screenshot. Only include current semester courses.",
-    )
+def parse_syllabus(syllabus_text: str, course_name: str, premium: bool = False) -> dict:
+    user_prompt = f"Course: {course_name}\n\n--- SYLLABUS ---\n{syllabus_text[:50000]}"
+    return _call_ai(SYLLABUS_SYSTEM, user_prompt, premium, max_tokens=4096)

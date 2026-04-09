@@ -29,7 +29,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     name = Column(String(100), default="")
     credits = Column(Integer, default=3)  # Free tier: 3 generations
-    plan = Column(String(20), default="free")  # free, starter, pro
+    plan = Column(String(20), default="free")  # free, paid
+    has_purchased = Column(Boolean, default=False)  # True once they buy credits
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     courses = relationship("Course", back_populates="user", cascade="all, delete-orphan")

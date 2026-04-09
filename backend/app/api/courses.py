@@ -43,7 +43,8 @@ async def import_from_screenshot(
     media_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
     media_type = media_map.get(ext, "image/png")
 
-    result = parse_schedule_screenshot(contents, media_type)
+    premium = user.has_purchased
+    result = parse_schedule_screenshot(contents, media_type, premium=premium)
 
     created = []
     skipped = []
@@ -66,7 +67,7 @@ async def import_from_screenshot(
         db.add(course)
         db.commit()
         db.refresh(course)
-        created.append({"id": course.id, "code": course.code, "name": course.name, "professor": course.professor, "notes": c.get("notes", "")})
+        created.append({"id": course.id, "code": course.code, "name": course.name, "professor": course.professor})
 
     return {"created": created, "skipped": skipped, "total_detected": len(result.get("courses", []))}
 
@@ -149,10 +150,8 @@ def parse_course_syllabus(course_id: int, user: User = Depends(require_credits(1
     syllabus = db.query(Material).filter(Material.course_id == course_id, Material.material_type == MaterialType.SYLLABUS).first()
     if not syllabus or not syllabus.extracted_text:
         raise HTTPException(status_code=404, detail="No syllabus found")
-    return parse_syllabus(syllabus.extracted_text, course.name)
+    return parse_syllabus(syllabus.extracted_text, course.name, premium=user.has_purchased)
 
-
-# ── Helper ──────────────────────────────────────────────
 
 def _course_response(c: Course) -> CourseResponse:
     return CourseResponse(

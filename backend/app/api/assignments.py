@@ -95,7 +95,8 @@ def generate_steps_route(assignment_id: int, user: User = Depends(require_credit
     _verify_course(db, user, assignment.course_id)
 
     context = _gather_course_context(db, assignment.course_id)
-    result = generate_task_steps(assignment.title, assignment.description, context)
+    premium = user.has_purchased
+    result = generate_task_steps(assignment.title, assignment.description, context, premium=premium)
 
     db.query(TaskStep).filter(TaskStep.assignment_id == assignment_id).delete()
     for i, step_data in enumerate(result.get("steps", [])):
@@ -129,7 +130,7 @@ def create_draft(assignment_id: int, user: User = Depends(require_credits(1)), d
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_draft(assignment.title, assignment.description, context)
+    return generate_draft(assignment.title, assignment.description, context, premium=user.has_purchased)
 
 
 @router.post("/assignments/{assignment_id}/homework-turnin")
@@ -139,7 +140,7 @@ def create_homework_turnin(assignment_id: int, user: User = Depends(require_cred
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_homework_turnin(assignment.title, assignment.description, context)
+    return generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased)
 
 
 @router.post("/assignments/{assignment_id}/homework-study")
@@ -149,10 +150,8 @@ def create_homework_study(assignment_id: int, user: User = Depends(require_credi
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_homework_study(assignment.title, assignment.description, context)
+    return generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased)
 
-
-# ── Helper ──────────────────────────────────────────────
 
 def _assignment_response(a: Assignment) -> AssignmentResponse:
     return AssignmentResponse(

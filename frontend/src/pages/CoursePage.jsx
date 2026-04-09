@@ -104,7 +104,7 @@ export default function CoursePage() {
     for (const file of files) try { await uploadAssignment(id, file); } catch {}
     const [a, m] = await Promise.all([getAssignments(id), getMaterials(id)]);
     setAssignments(a); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id));
-    setUploadingAssignment(false); setShowAddAssignment(false);
+    setUploadingAssignment(false); setShowAddAssignment(false); getContextUsage(id).then(setContextUsage).catch(() => {});
     if (assignmentInput.current) assignmentInput.current.value = "";
   };
   const handleDelete = async () => {

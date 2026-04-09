@@ -205,7 +205,7 @@ export default function CoursesPage() {
                 </div>
                 <div>
                   <div className="text-sm font-medium" style={{ color: "var(--text)" }}>{c.code} — {c.name}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{c.professor || "No professor"} · {c.material_count} files · {c.assignment_count} tasks</div>
+                  <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{c.professor || "No professor"} · {c.material_count} files · {c.assignment_count} assignments</div>
                 </div>
               </Link>
               <div className="flex items-center gap-2">

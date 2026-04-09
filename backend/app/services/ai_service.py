@@ -180,13 +180,13 @@ def generate_study_guide(course_name: str, exam_title: str, materials_text: str,
 def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
-    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=16000)
+    return _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
 
 
 def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
     context = _build_context(description, materials_text)
     user_prompt = f"Assignment: {title}\n\n{context}"
-    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=16000)
+    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=12000)
 
 
 def generate_task_steps(title: str, description: str, materials_text: str, premium: bool = False) -> dict:

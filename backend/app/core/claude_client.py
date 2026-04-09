@@ -3,7 +3,7 @@ import anthropic
 
 from app.core.config import settings
 
-client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+client = anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=120.0)
 
 
 def call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:

@@ -173,8 +173,23 @@ def _gather_course_images(db, course_id):
 
 
 def _gather_course_context(db, course_id):
+    """Assemble all course materials with clear labels so the AI knows what each source is."""
+    TYPE_LABELS = {
+        "textbook": "COURSE TEXTBOOK (use this as the primary reference for methods, theorems, and notation)",
+        "slides": "LECTURE SLIDES (these show what the professor emphasized in class)",
+        "syllabus": "COURSE SYLLABUS (contains grading policy, schedule, and expectations)",
+        "announcement": "PROFESSOR ANNOUNCEMENT (may contain hints, clarifications, or policy changes)",
+        "assignment": "ASSIGNMENT DOCUMENT (the actual homework/exam being referenced)",
+        "other": "COURSE MATERIAL",
+    }
     materials = db.query(Material).filter(Material.course_id == course_id).all()
-    return "\n\n".join(f"[{m.material_type.value}: {m.filename}]\n{m.extracted_text}" for m in materials if m.extracted_text)
+    parts = []
+    for m in materials:
+        if not m.extracted_text:
+            continue
+        label = TYPE_LABELS.get(m.material_type.value, "COURSE MATERIAL")
+        parts.append(f"=== {label}: {m.filename} ===\n{m.extracted_text}")
+    return "\n\n".join(parts)
 
 
 @router.post("/assignments/{assignment_id}/draft")

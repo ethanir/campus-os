@@ -246,7 +246,8 @@ def generate_study_guide(course_name: str, exam_title: str, materials_text: str,
 
 
 def generate_homework_turnin(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:
-    context = _build_context(description, materials_text)
+    budget = MAX_CONTEXT_CHARS if premium else MAX_CONTEXT_CHARS_FREE
+    context = _build_context(description, materials_text, budget=budget)
     user_prompt = f"Assignment: {title}\n\n{context}"
     
     # First pass: solve
@@ -291,7 +292,8 @@ Rewrite the COMPLETE submission with ALL corrections applied. Keep correct answe
 
 
 def generate_homework_study(title: str, description: str, materials_text: str, premium: bool = False, image_paths: list[str] = None) -> dict:
-    context = _build_context(description, materials_text)
+    budget = MAX_CONTEXT_CHARS if premium else MAX_CONTEXT_CHARS_FREE
+    context = _build_context(description, materials_text, budget=budget)
     user_prompt = f"Assignment: {title}\n\n{context}"
     if image_paths:
         return _call_ai_with_images(HOMEWORK_STUDY_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)

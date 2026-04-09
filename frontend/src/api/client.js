@@ -80,4 +80,4 @@ export const deleteGeneration = (genId) => api.delete(`/generations/${genId}`).t
 
 export default api;
 
-export const updateAssignmentContext = (id, notes) => api.patch(\`/assignments/\${id}/context-notes\`, { context_notes: notes }).then(r => r.data);
+export const updateAssignmentContext = (id, notes) => api.patch(`/assignments/${id}/context-notes`, { context_notes: notes }).then(r => r.data);

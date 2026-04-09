@@ -59,7 +59,7 @@ function Sidebar() {
       <div className="px-5 pt-6 pb-4">
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full" style={{ background: "var(--accent)", boxShadow: `0 0 8px var(--accent)` }} />
-          <span className="font-mono text-[10px] tracking-[2.5px] font-bold" style={{ color: "var(--text-dim)" }}>EZ SCHOOL AI</span>
+          <span className="font-mono text-[10px] tracking-[2.5px] font-bold" style={{ color: "var(--text-dim)" }}>YOURCOURSE AI</span>
         </div>
       </div>
 

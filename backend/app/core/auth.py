@@ -45,16 +45,22 @@ def get_current_user(
 
 
 def require_credits(n: int = 1):
-    """Dependency that checks and deducts credits."""
+    """Dependency that CHECKS credits but does NOT deduct yet."""
     def checker(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.plan == "pro":
             return user  # Unlimited
         if user.credits < n:
             raise HTTPException(
                 status_code=403,
-                detail=f"Not enough credits. You have {user.credits}, need {n}. Upgrade your plan or buy more credits."
+                detail=f"Not enough credits. You have {user.credits}, need {n}. Buy more credits to continue."
             )
-        user.credits -= n
-        db.commit()
         return user
     return checker
+
+
+def deduct_credits(user: User, db: Session, n: int = 1):
+    """Call this AFTER a successful AI call to deduct credits."""
+    if user.plan == "pro":
+        return
+    user.credits -= n
+    db.commit()

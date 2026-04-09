@@ -66,7 +66,7 @@ export default function LandingPage() {
           <div>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-green)", marginBottom: 16, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1.5 }}>THE SOLUTION</h3>
             <div style={{ fontSize: 15, lineHeight: 1.8, color: "var(--text-muted)" }}>
-              EZ School AI stores all your course materials permanently. Every AI generation uses your actual slides, textbook, and professor's methods as context. It doesn't just give you an answer — it completes work exactly like a top student in YOUR class would, using YOUR professor's notation and methods.
+              YourCourse AI stores all your course materials permanently. Every AI generation uses your actual slides, textbook, and professor's methods as context. It doesn't just give you an answer — it completes work exactly like a top student in YOUR class would, using YOUR professor's notation and methods.
             </div>
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function LandingPage() {
       <section style={{ maxWidth: 800, margin: "0 auto", padding: "0 40px 80px" }}>
         <h2 style={{ textAlign: "center", fontSize: 32, fontWeight: 800, marginBottom: 48 }}>FAQ</h2>
         {[
-          { q: "How is this different from ChatGPT or StudyX?", a: "Those tools don't know your course. They give generic answers using general knowledge. EZ School AI stores your actual slides, textbook, and assignments — every AI generation uses YOUR course materials as context, so answers use your professor's exact methods and notation." },
+          { q: "How is this different from ChatGPT or StudyX?", a: "Those tools don't know your course. They give generic answers using general knowledge. YourCourse AI stores your actual slides, textbook, and assignments — every AI generation uses YOUR course materials as context, so answers use your professor's exact methods and notation." },
           { q: "What's the difference between Standard and Premium AI?", a: "Standard AI (Gemini Flash) is free and works well for simpler tasks. Premium AI (Claude Sonnet) is significantly more accurate, especially for complex proofs, multi-step math problems, and matching your professor's specific notation. Most students upgrade after trying their first generation." },
           { q: "Will my professor know I used this?", a: "The AI uses your course's actual methods and notation — the output looks like a well-prepared student's work, not like AI-generated text. It solves problems the way your class teaches, not with random methods from the internet." },
           { q: "What file types can I upload?", a: "PDF, PowerPoint (.pptx), Word documents, and plain text files. Upload slides, textbook chapters, assignment specs, syllabi, announcements — anything from your course." },
@@ -225,7 +225,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer style={{ textAlign: "center", padding: "24px 40px", borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text-dim)" }}>
-        © 2026 EZ School AI. All rights reserved.
+        © 2026 YourCourse AI. All rights reserved.
       </footer>
     </div>
   );

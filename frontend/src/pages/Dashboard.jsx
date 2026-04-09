@@ -32,7 +32,7 @@ export default function Dashboard() {
               style={{ background: `rgba(var(--accent-rgb), 0.1)` }}>
               <BookOpen size={24} style={{ color: "var(--accent)" }} />
             </div>
-            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>Welcome to EZ School AI</h2>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>Welcome to YourCourse AI</h2>
             <p className="text-sm mb-6 max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>
               Add your courses, upload materials, and let AI handle the rest.
             </p>

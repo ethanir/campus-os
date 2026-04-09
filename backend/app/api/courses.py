@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.auth import get_current_user, require_credits
+from app.core.auth import get_current_user, require_credits, deduct_credits
 from app.models.models import Course, Material, MaterialType, User
 from app.schemas.schemas import CourseCreate, CourseResponse, MaterialResponse
 from app.services.file_extraction import extract_text
@@ -45,6 +45,9 @@ async def import_from_screenshot(
 
     premium = user.has_purchased
     result = parse_schedule_screenshot(contents, media_type, premium=premium)
+
+    # SUCCESS — now deduct
+    deduct_credits(user, db)
 
     created = []
     skipped = []
@@ -150,7 +153,9 @@ def parse_course_syllabus(course_id: int, user: User = Depends(require_credits(1
     syllabus = db.query(Material).filter(Material.course_id == course_id, Material.material_type == MaterialType.SYLLABUS).first()
     if not syllabus or not syllabus.extracted_text:
         raise HTTPException(status_code=404, detail="No syllabus found")
-    return parse_syllabus(syllabus.extracted_text, course.name, premium=user.has_purchased)
+    result = parse_syllabus(syllabus.extracted_text, course.name, premium=user.has_purchased)
+    deduct_credits(user, db)
+    return result
 
 
 def _course_response(c: Course) -> CourseResponse:

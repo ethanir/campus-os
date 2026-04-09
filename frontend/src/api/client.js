@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const api = axios.create({ baseURL: "/api" });
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+});
 
 // Attach token to every request
 api.interceptors.request.use((config) => {
@@ -47,6 +49,9 @@ export const uploadAssignment = (courseId, file) => {
   form.append("file", file);
   return api.post(`/courses/${courseId}/upload-assignment`, form).then((r) => r.data);
 };
+
+// ── Syllabus ───────────────────────────────────────────
+export const parseSyllabus = (courseId) => api.post(`/courses/${courseId}/parse-syllabus`).then((r) => r.data);
 
 // ── Steps ──────────────────────────────────────────────
 export const getSteps = (assignmentId) => api.get(`/assignments/${assignmentId}/steps`).then((r) => r.data);

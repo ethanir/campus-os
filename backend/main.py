@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,14 +6,23 @@ from app.core.database import init_db
 from app.api import auth, courses, assignments, planner
 
 app = FastAPI(
-    title="EZ School AI",
+    title="YourCourse AI",
     description="AI-powered academic assistant",
-    version="0.2.0",
+    version="1.0.0",
 )
+
+# CORS — allow frontend origin from env, plus localhost for dev
+frontend_url = os.getenv("FRONTEND_URL", "https://yourcourseai.com")
+allowed_origins = [
+    frontend_url,
+    "https://www.yourcourseai.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,4 +41,4 @@ def on_startup():
 
 @app.get("/")
 def root():
-    return {"name": "EZ School AI", "version": "0.2.0", "status": "running"}
+    return {"name": "YourCourse AI", "version": "1.0.0", "status": "running"}

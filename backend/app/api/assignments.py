@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.auth import get_current_user, require_credits
+from app.core.auth import get_current_user, require_credits, deduct_credits
 from app.models.models import Assignment, TaskStep, Course, Material, MaterialType, AssignmentStatus, User
 from app.schemas.schemas import AssignmentCreate, AssignmentResponse, TaskStepResponse, TaskStepToggle
 from app.services.ai_service import generate_task_steps, generate_draft, generate_homework_turnin, generate_homework_study
@@ -95,8 +95,10 @@ def generate_steps_route(assignment_id: int, user: User = Depends(require_credit
     _verify_course(db, user, assignment.course_id)
 
     context = _gather_course_context(db, assignment.course_id)
-    premium = user.has_purchased
-    result = generate_task_steps(assignment.title, assignment.description, context, premium=premium)
+    result = generate_task_steps(assignment.title, assignment.description, context, premium=user.has_purchased)
+
+    # SUCCESS — now deduct
+    deduct_credits(user, db)
 
     db.query(TaskStep).filter(TaskStep.assignment_id == assignment_id).delete()
     for i, step_data in enumerate(result.get("steps", [])):
@@ -116,7 +118,7 @@ def toggle_step(step_id: int, data: TaskStepToggle, user: User = Depends(get_cur
     return {"ok": True, "is_done": step.is_done}
 
 
-# ── AI Generation (costs credits) ──────────────────────
+# ── AI Generation (credits deducted AFTER success) ─────
 
 def _gather_course_context(db, course_id):
     materials = db.query(Material).filter(Material.course_id == course_id).all()
@@ -130,7 +132,9 @@ def create_draft(assignment_id: int, user: User = Depends(require_credits(1)), d
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_draft(assignment.title, assignment.description, context, premium=user.has_purchased)
+    result = generate_draft(assignment.title, assignment.description, context, premium=user.has_purchased)
+    deduct_credits(user, db)
+    return result
 
 
 @router.post("/assignments/{assignment_id}/homework-turnin")
@@ -140,7 +144,9 @@ def create_homework_turnin(assignment_id: int, user: User = Depends(require_cred
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased)
+    result = generate_homework_turnin(assignment.title, assignment.description, context, premium=user.has_purchased)
+    deduct_credits(user, db)
+    return result
 
 
 @router.post("/assignments/{assignment_id}/homework-study")
@@ -150,7 +156,9 @@ def create_homework_study(assignment_id: int, user: User = Depends(require_credi
         raise HTTPException(status_code=404, detail="Assignment not found")
     _verify_course(db, user, assignment.course_id)
     context = _gather_course_context(db, assignment.course_id)
-    return generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased)
+    result = generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased)
+    deduct_credits(user, db)
+    return result
 
 
 def _assignment_response(a: Assignment) -> AssignmentResponse:

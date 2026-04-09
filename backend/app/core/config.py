@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     max_upload_size_mb: int = 50
     jwt_secret: str = "change-this-to-a-random-secret-in-production"
+    frontend_url: str = "https://yourcourseai.com"
 
     class Config:
         env_file = ".env"

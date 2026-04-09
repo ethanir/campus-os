@@ -1,35 +1,27 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Loader2, BookOpen, Sparkles, FileText } from "lucide-react";
+import { ChevronRight, Loader2, BookOpen, Sparkles, FileText, Zap } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 import { getCourses } from "../api/client";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const c = await getCourses();
-        setCourses(c);
-      } catch (err) { console.error(err); }
-      setLoading(false);
-    })();
+    getCourses().then(setCourses).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64" style={{ color: "var(--text-muted)" }}>
-        <Loader2 className="animate-spin mr-2" size={18} /> Loading...
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-64" style={{ color: "var(--text-muted)" }}><Loader2 className="animate-spin mr-2" size={18} /> Loading...</div>;
 
   return (
     <div className="animate-fade-up">
-      <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+        {user?.name ? `Hey ${user.name.split(" ")[0]}` : "Dashboard"}
+      </h1>
       <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-        {courses.length} course{courses.length !== 1 ? "s" : ""}
+        {courses.length} course{courses.length !== 1 ? "s" : ""} · {user?.credits || 0} credits remaining
       </p>
 
       {/* Empty state */}
@@ -40,23 +32,21 @@ export default function Dashboard() {
               style={{ background: `rgba(var(--accent-rgb), 0.1)` }}>
               <BookOpen size={24} style={{ color: "var(--accent)" }} />
             </div>
-            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>Welcome to Campus OS</h2>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>Welcome to EZ School AI</h2>
             <p className="text-sm mb-6 max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>
               Add your courses, upload materials, and let AI handle the rest.
             </p>
-            <div className="flex gap-3 justify-center">
-              <Link to="/courses"
-                className="font-mono text-xs font-bold tracking-wider px-5 py-2.5 rounded-lg transition"
-                style={{ background: "var(--accent)", color: "var(--bg)" }}>
-                GET STARTED
-              </Link>
-            </div>
+            <Link to="/courses"
+              className="font-mono text-xs font-bold tracking-wider px-5 py-2.5 rounded-lg transition inline-block"
+              style={{ background: "var(--accent)", color: "var(--bg)", textDecoration: "none" }}>
+              GET STARTED
+            </Link>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
               { icon: BookOpen, title: "Add Courses", desc: "Import from a screenshot or add manually" },
-              { icon: Upload, title: "Upload Everything", desc: "Slides, textbooks, assignments, announcements" },
-              { icon: Sparkles, title: "AI Generates", desc: "Study guides, completed homework, step-by-step explanations" },
+              { icon: FileText, title: "Upload Everything", desc: "Slides, textbooks, assignments, announcements" },
+              { icon: Sparkles, title: "AI Generates", desc: "Study guides, completed homework, explanations" },
             ].map(({ icon: Icon, title, desc }, i) => (
               <div key={i} className="rounded-xl p-4 text-center" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
                 <div className="w-9 h-9 rounded-lg mx-auto mb-3 flex items-center justify-center" style={{ background: `rgba(var(--accent-rgb), 0.08)` }}>
@@ -89,14 +79,8 @@ export default function Dashboard() {
                 <ChevronRight size={14} className="mt-1" style={{ color: "var(--text-dim)" }} />
               </div>
               <div className="flex gap-4 text-[11px] font-mono" style={{ color: "var(--text-dim)" }}>
-                <div className="flex items-center gap-1.5">
-                  <FileText size={11} />
-                  <span>{c.material_count} file{c.material_count !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Sparkles size={11} />
-                  <span>{c.assignment_count} task{c.assignment_count !== 1 ? "s" : ""}</span>
-                </div>
+                <div className="flex items-center gap-1.5"><FileText size={11} /><span>{c.material_count} file{c.material_count !== 1 ? "s" : ""}</span></div>
+                <div className="flex items-center gap-1.5"><Sparkles size={11} /><span>{c.assignment_count} task{c.assignment_count !== 1 ? "s" : ""}</span></div>
               </div>
             </Link>
           ))}

@@ -3,10 +3,11 @@ import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
-  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Plus, Upload, Trash2,
+  ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Upload, Trash2,
 } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 import {
-  getCourse, getAssignments, getMaterials, getSteps, createAssignment, uploadAssignment,
+  getCourse, getAssignments, getMaterials, getSteps, uploadAssignment,
   generateSteps, toggleStep, generateStudyGuide,
   generateHomeworkTurnin, generateHomeworkStudy, uploadMaterial,
   deleteMaterial, deleteAssignment,
@@ -21,16 +22,14 @@ function Modal({ onClose, wide, children }) {
       <div onClick={(e) => e.stopPropagation()} style={{
         width: "100%", maxWidth: wide ? "720px" : "480px", maxHeight: "85vh", overflowY: "auto",
         background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px",
-      }}>
-        {children}
-      </div>
-    </div>,
-    document.body
+      }}>{children}</div>
+    </div>, document.body
   );
 }
 
 export default function CoursePage() {
   const { id } = useParams();
+  const { user, refreshUser } = useAuth();
   const [course, setCourse] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -38,8 +37,6 @@ export default function CoursePage() {
   const [steps, setSteps] = useState({});
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(null);
-
-  // Modals
   const [resultModal, setResultModal] = useState(null);
   const [showStudyGuideSetup, setShowStudyGuideSetup] = useState(false);
   const [showAddAssignment, setShowAddAssignment] = useState(false);
@@ -49,7 +46,7 @@ export default function CoursePage() {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadType, setUploadType] = useState("slides");
   const [uploading, setUploading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null); // {type: "material"|"assignment", id, name}
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const fileInput = useRef(null);
   const assignmentInput = useRef(null);
 
@@ -64,110 +61,56 @@ export default function CoursePage() {
     })();
   }, [id]);
 
-  const loadSteps = async (aid) => {
-    if (steps[aid]) return;
-    try { const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); } catch {}
-  };
+  const loadSteps = async (aid) => { if (!steps[aid]) try { const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); } catch {} };
+  const handleExpand = (aid) => { if (expanded === aid) setExpanded(null); else { setExpanded(aid); loadSteps(aid); } };
+  const handleToggleStep = async (sid, done, aid) => { try { await toggleStep(sid, !done); setSteps((p) => ({ ...p, [aid]: p[aid].map((s) => s.id === sid ? { ...s, is_done: !done } : s) })); } catch {} };
+  const toggleMaterial = (matId) => setSelectedMaterials((prev) => prev.includes(matId) ? prev.filter((x) => x !== matId) : [...prev, matId]);
 
-  const handleExpand = (aid) => {
-    if (expanded === aid) setExpanded(null);
-    else { setExpanded(aid); loadSteps(aid); }
+  // AI calls with credit refresh
+  const aiCall = async (key, fn) => {
+    setAiLoading(key);
+    try { const r = await fn(); refreshUser(); return r; }
+    catch (err) {
+      const detail = err.response?.data?.detail || "Failed";
+      setResultModal({ title: "Error", content: detail });
+      return null;
+    }
+    finally { setAiLoading(null); }
   };
 
   const handleGenerateSteps = async (aid) => {
-    setAiLoading(`steps-${aid}`);
-    try { await generateSteps(aid); const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); } catch {}
-    setAiLoading(null);
+    await aiCall(`steps-${aid}`, async () => { await generateSteps(aid); const s = await getSteps(aid); setSteps((p) => ({ ...p, [aid]: s })); });
   };
-
-  const handleToggleStep = async (sid, done, aid) => {
-    try {
-      await toggleStep(sid, !done);
-      setSteps((p) => ({ ...p, [aid]: p[aid].map((s) => s.id === sid ? { ...s, is_done: !done } : s) }));
-    } catch {}
-  };
-
-  const handleHomeworkTurnin = async (aid) => {
-    setAiLoading(`turnin-${aid}`);
-    try {
-      const r = await generateHomeworkTurnin(aid);
-      setResultModal({ title: "Turn-in Ready Submission", content: r.submission, notes: r.notes });
-    } catch { setResultModal({ title: "Error", content: "Failed to generate." }); }
-    setAiLoading(null);
-  };
-
-  const handleHomeworkStudy = async (aid) => {
-    setAiLoading(`study-${aid}`);
-    try {
-      const r = await generateHomeworkStudy(aid);
-      setResultModal({
-        title: "Study Version (Step-by-Step)",
-        content: r.study_version,
-        notes: r.key_concepts?.length ? "Key concepts: " + r.key_concepts.join(", ") : "",
-      });
-    } catch { setResultModal({ title: "Error", content: "Failed to generate." }); }
-    setAiLoading(null);
-  };
-
+  const handleHomeworkTurnin = (aid) => aiCall(`turnin-${aid}`, () => generateHomeworkTurnin(aid)).then(r => r && setResultModal({ title: "Turn-in Ready Submission", content: r.submission, notes: r.notes }));
+  const handleHomeworkStudy = (aid) => aiCall(`study-${aid}`, () => generateHomeworkStudy(aid)).then(r => r && setResultModal({ title: "Study Version (Step-by-Step)", content: r.study_version, notes: r.key_concepts?.length ? "Key concepts: " + r.key_concepts.join(", ") : "" }));
   const handleStudyGuide = async () => {
     setShowStudyGuideSetup(false);
-    setAiLoading("study-guide");
-    try {
-      const r = await generateStudyGuide(id, studyExamTitle, selectedMaterials);
-      setResultModal({ title: r.title || `Study Guide: ${studyExamTitle}`, content: r.content });
-    } catch { setResultModal({ title: "Error", content: "Failed to generate study guide." }); }
-    setAiLoading(null);
-  };
-
-  const handleUploadAssignment = async (files) => {
-    setUploadingAssignment(true);
-    for (const file of files) {
-      try { await uploadAssignment(id, file); } catch {}
-    }
-    const a = await getAssignments(id);
-    const m = await getMaterials(id);
-    setAssignments(a);
-    setMaterials(m);
-    setSelectedMaterials(m.map((mat) => mat.id));
-    setUploadingAssignment(false);
-    setShowAddAssignment(false);
-    if (assignmentInput.current) assignmentInput.current.value = "";
+    const r = await aiCall("study-guide", () => generateStudyGuide(id, studyExamTitle, selectedMaterials));
+    if (r) setResultModal({ title: r.title || `Study Guide: ${studyExamTitle}`, content: r.content });
   };
 
   const handleUploadFiles = async (files) => {
     setUploading(true);
-    for (const file of files) {
-      try { await uploadMaterial(id, file, uploadType); } catch {}
-    }
-    const m = await getMaterials(id);
-    setMaterials(m);
-    setSelectedMaterials(m.map((mat) => mat.id));
-    setUploading(false);
-    setShowUpload(false);
+    for (const file of files) try { await uploadMaterial(id, file, uploadType); } catch {}
+    const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id));
+    setUploading(false); setShowUpload(false);
     if (fileInput.current) fileInput.current.value = "";
   };
-
+  const handleUploadAssignment = async (files) => {
+    setUploadingAssignment(true);
+    for (const file of files) try { await uploadAssignment(id, file); } catch {}
+    const [a, m] = await Promise.all([getAssignments(id), getMaterials(id)]);
+    setAssignments(a); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id));
+    setUploadingAssignment(false); setShowAddAssignment(false);
+    if (assignmentInput.current) assignmentInput.current.value = "";
+  };
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      if (deleteTarget.type === "material") {
-        await deleteMaterial(id, deleteTarget.id);
-        const m = await getMaterials(id);
-        setMaterials(m);
-        setSelectedMaterials(m.map((mat) => mat.id));
-      } else {
-        await deleteAssignment(deleteTarget.id);
-        const a = await getAssignments(id);
-        setAssignments(a);
-      }
+      if (deleteTarget.type === "material") { await deleteMaterial(id, deleteTarget.id); const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id)); }
+      else { await deleteAssignment(deleteTarget.id); setAssignments(await getAssignments(id)); }
     } catch {}
     setDeleteTarget(null);
-  };
-
-  const toggleMaterial = (matId) => {
-    setSelectedMaterials((prev) =>
-      prev.includes(matId) ? prev.filter((x) => x !== matId) : [...prev, matId]
-    );
   };
 
   if (loading) return <div className="flex items-center justify-center h-64" style={{ color: "var(--text-muted)" }}><Loader2 className="animate-spin mr-2" size={18} /> Loading...</div>;
@@ -175,10 +118,7 @@ export default function CoursePage() {
 
   return (
     <div className="animate-fade-up">
-      <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm transition mb-4" style={{ color: "var(--text-muted)" }}>
-        <ArrowLeft size={14} /> Back
-      </Link>
-
+      <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm transition mb-4" style={{ color: "var(--text-muted)", textDecoration: "none" }}><ArrowLeft size={14} /> Back</Link>
       <div className="flex items-center gap-3 mb-1">
         <div className="w-3 h-3 rounded-full" style={{ background: course.color }} />
         <span className="font-mono text-xs font-bold tracking-wider" style={{ color: course.color }}>{course.code}</span>
@@ -186,27 +126,23 @@ export default function CoursePage() {
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>{course.name}</h1>
       <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>{course.professor}</p>
 
-      {/* Main action */}
       <div className="flex gap-2 mb-6">
         <button onClick={() => setShowStudyGuideSetup(true)} disabled={aiLoading === "study-guide" || materials.length === 0}
           className="flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider px-4 py-2.5 rounded-lg transition disabled:opacity-50"
           style={{ background: `rgba(var(--accent-rgb), 0.1)`, color: "var(--accent)", border: `1px solid var(--accent)` }}>
           {aiLoading === "study-guide" ? <Loader2 size={12} className="animate-spin" /> : <GraduationCap size={12} />}
           {aiLoading === "study-guide" ? "GENERATING..." : "STUDY GUIDE"}
+          <span className="opacity-60">1 credit</span>
         </button>
       </div>
 
-      {/* Two column layout */}
+      {/* Two columns */}
       <div className="grid grid-cols-2 gap-6">
-        {/* Left: Materials */}
+        {/* Materials */}
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>
-              MATERIALS ({materials.length})
-            </h2>
-            <button onClick={() => setShowUpload(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
-              + UPLOAD
-            </button>
+            <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>MATERIALS ({materials.length})</h2>
+            <button onClick={() => setShowUpload(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>+ UPLOAD</button>
           </div>
           {materials.length === 0 ? (
             <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
@@ -217,32 +153,24 @@ export default function CoursePage() {
           ) : (
             <div className="space-y-2">
               {materials.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 group"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 group" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                   <FileText size={13} style={{ color: "var(--text-dim)" }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs truncate" style={{ color: "var(--text)" }}>{m.filename}</div>
                     <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>{m.material_type}</div>
                   </div>
-                  <button onClick={() => setDeleteTarget({ type: "material", id: m.id, name: m.filename })}
-                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition" style={{ color: "var(--accent-red)" }}>
-                    <Trash2 size={12} />
-                  </button>
+                  <button onClick={() => setDeleteTarget({ type: "material", id: m.id, name: m.filename })} className="p-1 rounded opacity-0 group-hover:opacity-100 transition" style={{ color: "var(--accent-red)" }}><Trash2 size={12} /></button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Right: Assignments */}
+        {/* Assignments */}
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>
-              ASSIGNMENTS ({assignments.length})
-            </h2>
-            <button onClick={() => setShowAddAssignment(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
-              + ADD
-            </button>
+            <h2 className="font-mono text-[10px] tracking-[2px] font-bold" style={{ color: "var(--text-dim)" }}>ASSIGNMENTS ({assignments.length})</h2>
+            <button onClick={() => setShowAddAssignment(true)} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>+ ADD</button>
           </div>
           {assignments.length === 0 ? (
             <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
@@ -264,19 +192,11 @@ export default function CoursePage() {
                           {a.due_date && <div className="font-mono text-[10px] mt-0.5" style={{ color: "var(--text-dim)" }}>Due {new Date(a.due_date).toLocaleDateString()}</div>}
                         </div>
                       </button>
-                      <button onClick={() => setDeleteTarget({ type: "assignment", id: a.id, name: a.title })}
-                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition mr-1" style={{ color: "var(--accent-red)" }}>
-                        <Trash2 size={12} />
-                      </button>
-                      <button onClick={() => handleExpand(a.id)}>
-                        {isExp ? <ChevronUp size={13} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-dim)" }} />}
-                      </button>
+                      <button onClick={() => setDeleteTarget({ type: "assignment", id: a.id, name: a.title })} className="p-1 rounded opacity-0 group-hover:opacity-100 transition mr-1" style={{ color: "var(--accent-red)" }}><Trash2 size={12} /></button>
+                      <button onClick={() => handleExpand(a.id)}>{isExp ? <ChevronUp size={13} style={{ color: "var(--text-dim)" }} /> : <ChevronDown size={13} style={{ color: "var(--text-dim)" }} />}</button>
                     </div>
-
                     {isExp && (
                       <div className="px-3.5 pb-3.5" style={{ borderTop: "1px solid var(--border)" }}>
-                        {a.description && <p className="text-xs my-2.5" style={{ color: "var(--text-muted)" }}>{a.description}</p>}
-
                         <div className="flex gap-1.5 mb-3 mt-2 flex-wrap">
                           <button onClick={() => handleGenerateSteps(a.id)} disabled={!!aiLoading}
                             className="flex items-center gap-1 font-mono text-[8px] font-bold tracking-wider px-2.5 py-1.5 rounded-md transition disabled:opacity-50"
@@ -294,7 +214,6 @@ export default function CoursePage() {
                             {aiLoading === `study-${a.id}` ? <Loader2 size={9} className="animate-spin" /> : <Eye size={9} />} STUDY VERSION
                           </button>
                         </div>
-
                         {aSteps.length > 0 && (
                           <div className="space-y-1">
                             {aSteps.map((s) => (
@@ -306,10 +225,7 @@ export default function CoursePage() {
                                   style={{ background: s.is_done ? "var(--accent)" : "transparent", border: s.is_done ? "none" : "1.5px solid var(--border-light)" }}>
                                   {s.is_done && <Check size={8} style={{ color: "var(--bg)" }} strokeWidth={3} />}
                                 </div>
-                                <span className="text-xs leading-snug flex-1"
-                                  style={{ color: s.is_done ? "var(--text-dim)" : "var(--text)", textDecoration: s.is_done ? "line-through" : "none" }}>
-                                  {s.text}
-                                </span>
+                                <span className="text-xs leading-snug flex-1" style={{ color: s.is_done ? "var(--text-dim)" : "var(--text)", textDecoration: s.is_done ? "line-through" : "none" }}>{s.text}</span>
                               </div>
                             ))}
                           </div>
@@ -324,34 +240,6 @@ export default function CoursePage() {
         </div>
       </div>
 
-      {/* Add Assignment Modal */}
-      {showAddAssignment && (
-        <Modal onClose={() => setShowAddAssignment(false)}>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Upload Assignment</h2>
-            <button onClick={() => setShowAddAssignment(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
-          </div>
-          <div
-            onClick={() => assignmentInput.current?.click()}
-            className="rounded-xl p-8 text-center cursor-pointer transition"
-            style={{ border: "2px dashed var(--border)" }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadAssignment(Array.from(e.dataTransfer.files)); }}>
-            {uploadingAssignment ? (
-              <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} />
-            ) : (
-              <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />
-            )}
-            <p className="text-sm" style={{ color: uploadingAssignment ? "var(--accent)" : "var(--text)" }}>
-              {uploadingAssignment ? "Uploading..." : "Drop assignment file or click to browse"}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>PDF, PPTX, TXT, MD</p>
-          </div>
-          <input ref={assignmentInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden"
-            onChange={(e) => { if (e.target.files.length) handleUploadAssignment(Array.from(e.target.files)); }} />
-        </Modal>
-      )}
-
       {/* Upload Modal */}
       {showUpload && (
         <Modal onClose={() => setShowUpload(false)}>
@@ -362,48 +250,38 @@ export default function CoursePage() {
           <div className="mb-4">
             <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
             <div className="flex flex-wrap gap-1.5">
-              {[
-                { value: "slides", label: "Slides" },
-                { value: "textbook", label: "Textbook" },
-                { value: "assignment", label: "Assignment" },
-                { value: "syllabus", label: "Syllabus" },
-                { value: "announcement", label: "Announcement" },
-                { value: "other", label: "Other" },
-              ].map((t) => (
-                <button key={t.value} onClick={() => setUploadType(t.value)}
-                  className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
-                  style={{
-                    background: uploadType === t.value ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)",
-                    color: uploadType === t.value ? "var(--accent)" : "var(--text-muted)",
-                    border: `1px solid ${uploadType === t.value ? "var(--accent)" : "var(--border)"}`,
-                  }}>
-                  {t.label}
-                </button>
+              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "assignment", l: "Assignment" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
+                <button key={t.v} onClick={() => setUploadType(t.v)} className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
+                  style={{ background: uploadType === t.v ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)", color: uploadType === t.v ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${uploadType === t.v ? "var(--accent)" : "var(--border)"}` }}>{t.l}</button>
               ))}
             </div>
           </div>
-          <div
-            onClick={() => fileInput.current?.click()}
-            className="rounded-xl p-8 text-center cursor-pointer transition"
-            style={{ border: "2px dashed var(--border)" }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadFiles(Array.from(e.dataTransfer.files)); }}>
-            {uploading ? (
-              <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} />
-            ) : (
-              <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />
-            )}
-            <p className="text-sm" style={{ color: uploading ? "var(--accent)" : "var(--text)" }}>
-              {uploading ? "Uploading..." : "Drop files or click to browse"}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>PDF, PPTX, TXT, MD</p>
+          <div onClick={() => fileInput.current?.click()} className="rounded-xl p-8 text-center cursor-pointer transition" style={{ border: "2px dashed var(--border)" }}
+            onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadFiles(Array.from(e.dataTransfer.files)); }}>
+            {uploading ? <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} /> : <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />}
+            <p className="text-sm" style={{ color: uploading ? "var(--accent)" : "var(--text)" }}>{uploading ? "Uploading..." : "Drop files or click to browse"}</p>
           </div>
-          <input ref={fileInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden"
-            onChange={(e) => { if (e.target.files.length) handleUploadFiles(Array.from(e.target.files)); }} />
+          <input ref={fileInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden" onChange={(e) => { if (e.target.files.length) handleUploadFiles(Array.from(e.target.files)); }} />
         </Modal>
       )}
 
-      {/* Study Guide Setup Modal */}
+      {/* Upload Assignment Modal */}
+      {showAddAssignment && (
+        <Modal onClose={() => setShowAddAssignment(false)}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Upload Assignment</h2>
+            <button onClick={() => setShowAddAssignment(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+          </div>
+          <div onClick={() => assignmentInput.current?.click()} className="rounded-xl p-8 text-center cursor-pointer transition" style={{ border: "2px dashed var(--border)" }}
+            onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadAssignment(Array.from(e.dataTransfer.files)); }}>
+            {uploadingAssignment ? <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} /> : <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />}
+            <p className="text-sm" style={{ color: uploadingAssignment ? "var(--accent)" : "var(--text)" }}>{uploadingAssignment ? "Uploading..." : "Drop assignment file or click"}</p>
+          </div>
+          <input ref={assignmentInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden" onChange={(e) => { if (e.target.files.length) handleUploadAssignment(Array.from(e.target.files)); }} />
+        </Modal>
+      )}
+
+      {/* Study Guide Setup */}
       {showStudyGuideSetup && (
         <Modal onClose={() => setShowStudyGuideSetup(false)}>
           <div className="flex justify-between items-center mb-4">
@@ -412,19 +290,13 @@ export default function CoursePage() {
           </div>
           <div className="mb-4">
             <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>EXAM NAME</label>
-            <input value={studyExamTitle} onChange={(e) => setStudyExamTitle(e.target.value)}
-              placeholder="Midterm 1, Final Exam, etc."
-              className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
-              style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }} />
+            <input value={studyExamTitle} onChange={(e) => setStudyExamTitle(e.target.value)} placeholder="Midterm 1, Final Exam..."
+              className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }} />
           </div>
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
-              <label className="font-mono text-[10px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>
-                MATERIALS ({selectedMaterials.length}/{materials.length})
-              </label>
-              <button onClick={() => setSelectedMaterials(
-                selectedMaterials.length === materials.length ? [] : materials.map((m) => m.id)
-              )} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
+              <label className="font-mono text-[10px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>MATERIALS ({selectedMaterials.length}/{materials.length})</label>
+              <button onClick={() => setSelectedMaterials(selectedMaterials.length === materials.length ? [] : materials.map((m) => m.id))} className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--accent)" }}>
                 {selectedMaterials.length === materials.length ? "DESELECT ALL" : "SELECT ALL"}
               </button>
             </div>
@@ -432,16 +304,13 @@ export default function CoursePage() {
               {materials.map((m) => {
                 const sel = selectedMaterials.includes(m.id);
                 return (
-                  <div key={m.id} onClick={() => toggleMaterial(m.id)}
-                    className="flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition"
+                  <div key={m.id} onClick={() => toggleMaterial(m.id)} className="flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition"
                     style={{ background: sel ? `rgba(var(--accent-rgb), 0.06)` : "transparent", border: `1px solid ${sel ? "var(--accent)" : "var(--border)"}` }}>
-                    <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
-                      style={{ background: sel ? "var(--accent)" : "transparent", border: sel ? "none" : "1.5px solid var(--border-light)" }}>
+                    <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center" style={{ background: sel ? "var(--accent)" : "transparent", border: sel ? "none" : "1.5px solid var(--border-light)" }}>
                       {sel && <Check size={10} style={{ color: "var(--bg)" }} strokeWidth={3} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs truncate" style={{ color: "var(--text)" }}>{m.filename}</div>
-                      <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>{m.material_type}</div>
                     </div>
                   </div>
                 );
@@ -450,32 +319,18 @@ export default function CoursePage() {
           </div>
           <button onClick={handleStudyGuide} disabled={selectedMaterials.length === 0}
             className="w-full font-mono text-xs font-bold tracking-wider py-3 rounded-lg transition disabled:opacity-30"
-            style={{ background: "var(--accent)", color: "var(--bg)" }}>
-            GENERATE STUDY GUIDE
-          </button>
+            style={{ background: "var(--accent)", color: "var(--bg)" }}>GENERATE (1 credit)</button>
         </Modal>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {deleteTarget && (
         <Modal onClose={() => setDeleteTarget(null)}>
-          <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>
-            Delete {deleteTarget.type === "material" ? "Material" : "Assignment"}
-          </h2>
-          <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
-            Delete <strong style={{ color: "var(--text)" }}>{deleteTarget.name}</strong>? This can't be undone.
-          </p>
+          <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>Delete {deleteTarget.type === "material" ? "Material" : "Assignment"}</h2>
+          <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>Delete <strong style={{ color: "var(--text)" }}>{deleteTarget.name}</strong>?</p>
           <div className="flex gap-2">
-            <button onClick={() => setDeleteTarget(null)}
-              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
-              style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
-              CANCEL
-            </button>
-            <button onClick={handleDelete}
-              className="flex-1 font-mono text-xs font-bold tracking-wider py-2.5 rounded-lg transition"
-              style={{ background: "var(--accent-red)", color: "#fff" }}>
-              DELETE
-            </button>
+            <button onClick={() => setDeleteTarget(null)} className="flex-1 font-mono text-xs font-bold py-2.5 rounded-lg" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>CANCEL</button>
+            <button onClick={handleDelete} className="flex-1 font-mono text-xs font-bold py-2.5 rounded-lg" style={{ background: "var(--accent-red)", color: "#fff" }}>DELETE</button>
           </div>
         </Modal>
       )}
@@ -487,12 +342,9 @@ export default function CoursePage() {
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{resultModal.title}</h2>
             <button onClick={() => setResultModal(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
           </div>
-          <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>
-            {resultModal.content}
-          </pre>
+          <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed" style={{ color: "var(--text)" }}>{resultModal.content}</pre>
           {resultModal.notes && (
-            <div className="mt-4 p-3 rounded-lg text-xs"
-              style={{ background: `rgba(var(--accent-rgb), 0.05)`, border: `1px solid var(--accent)`, color: "var(--text-muted)" }}>
+            <div className="mt-4 p-3 rounded-lg text-xs" style={{ background: `rgba(var(--accent-rgb), 0.05)`, border: `1px solid var(--accent)`, color: "var(--text-muted)" }}>
               <strong style={{ color: "var(--accent)" }}>Notes:</strong> {resultModal.notes}
             </div>
           )}

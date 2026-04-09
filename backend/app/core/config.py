@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     claude_model: str = "claude-sonnet-4-20250514"
     max_upload_size_mb: int = 50
+    jwt_secret: str = "change-this-to-a-random-secret-in-production"
 
     class Config:
         env_file = ".env"

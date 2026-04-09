@@ -6,61 +6,39 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import Course, Material, MaterialType
+from app.core.auth import get_current_user, require_credits
+from app.models.models import Course, Material, MaterialType, User
 from app.schemas.schemas import CourseCreate, CourseResponse, MaterialResponse
 from app.services.file_extraction import extract_text
-from app.services.ai_service import parse_syllabus
-from app.services.ai_service import parse_schedule_screenshot
+from app.services.ai_service import parse_syllabus, parse_schedule_screenshot
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
 
 @router.get("", response_model=list[CourseResponse])
-def list_courses(db: Session = Depends(get_db)):
-    courses = db.query(Course).all()
-    result = []
-    for c in courses:
-        result.append(CourseResponse(
-            id=c.id,
-            name=c.name,
-            code=c.code,
-            professor=c.professor,
-            semester=c.semester,
-            color=c.color,
-            created_at=c.created_at,
-            material_count=len(c.materials),
-            assignment_count=len(c.assignments),
-        ))
-    return result
+def list_courses(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    courses = db.query(Course).filter(Course.user_id == user.id).all()
+    return [_course_response(c) for c in courses]
 
 
 @router.post("", response_model=CourseResponse)
-def create_course(data: CourseCreate, db: Session = Depends(get_db)):
-    course = Course(**data.model_dump())
+def create_course(data: CourseCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = Course(user_id=user.id, **data.model_dump())
     db.add(course)
     db.commit()
     db.refresh(course)
-    return CourseResponse(
-        id=course.id,
-        name=course.name,
-        code=course.code,
-        professor=course.professor,
-        semester=course.semester,
-        color=course.color,
-        created_at=course.created_at,
-    )
+    return _course_response(course)
 
 
-# ── Schedule Screenshot Import ──────────────────────────
+# ── Screenshot Import (MUST be before /{course_id}) ─────
 
 @router.post("/import-screenshot")
 async def import_from_screenshot(
     file: UploadFile = File(...),
+    user: User = Depends(require_credits(1)),
     db: Session = Depends(get_db),
 ):
-    """Upload a screenshot of a course schedule and AI-extract courses from it."""
     contents = await file.read()
-
     ext = file.filename.lower().rsplit(".", 1)[-1] if file.filename else "png"
     media_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
     media_type = media_map.get(ext, "image/png")
@@ -69,66 +47,41 @@ async def import_from_screenshot(
 
     created = []
     skipped = []
+    colors = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"]
     for c in result.get("courses", []):
         code = c.get("code", "").strip()
         name = c.get("name", "").strip()
         if not code:
             continue
-
-        existing = db.query(Course).filter(Course.code == code).first()
+        existing = db.query(Course).filter(Course.code == code, Course.user_id == user.id).first()
         if existing:
             skipped.append(code)
             continue
-
-        colors = ["#E8FF5A", "#5AF0FF", "#FF5A8A", "#5AFF8C", "#C49AFF", "#FFA35A"]
-        color = colors[len(created) % len(colors)]
-
         course = Course(
-            code=code,
-            name=name,
+            user_id=user.id, code=code, name=name,
             professor=c.get("professor", ""),
             semester=result.get("semester", "Spring 2026"),
-            color=color,
+            color=colors[len(created) % len(colors)],
         )
         db.add(course)
         db.commit()
         db.refresh(course)
-        created.append({
-            "id": course.id,
-            "code": course.code,
-            "name": course.name,
-            "professor": course.professor,
-            "notes": c.get("notes", ""),
-        })
+        created.append({"id": course.id, "code": course.code, "name": course.name, "professor": course.professor, "notes": c.get("notes", "")})
 
-    return {
-        "created": created,
-        "skipped": skipped,
-        "total_detected": len(result.get("courses", [])),
-    }
+    return {"created": created, "skipped": skipped, "total_detected": len(result.get("courses", []))}
 
 
 @router.get("/{course_id}", response_model=CourseResponse)
-def get_course(course_id: int, db: Session = Depends(get_db)):
-    course = db.query(Course).filter(Course.id == course_id).first()
+def get_course(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
-    return CourseResponse(
-        id=course.id,
-        name=course.name,
-        code=course.code,
-        professor=course.professor,
-        semester=course.semester,
-        color=course.color,
-        created_at=course.created_at,
-        material_count=len(course.materials),
-        assignment_count=len(course.assignments),
-    )
+    return _course_response(course)
 
 
 @router.delete("/{course_id}")
-def delete_course(course_id: int, db: Session = Depends(get_db)):
-    course = db.query(Course).filter(Course.id == course_id).first()
+def delete_course(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     db.delete(course)
@@ -143,61 +96,41 @@ async def upload_material(
     course_id: int,
     file: UploadFile = File(...),
     material_type: str = Form("other"),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    # Save file to disk
-    course_dir = settings.upload_path / str(course_id)
+    course_dir = settings.upload_path / str(user.id) / str(course_id)
     course_dir.mkdir(parents=True, exist_ok=True)
     file_path = course_dir / file.filename
-
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Extract text
     extracted = extract_text(str(file_path))
-
-    # Save to DB
-    mat = Material(
-        course_id=course_id,
-        filename=file.filename,
-        file_path=str(file_path),
-        material_type=MaterialType(material_type),
-        extracted_text=extracted,
-    )
+    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType(material_type), extracted_text=extracted)
     db.add(mat)
     db.commit()
     db.refresh(mat)
-
-    return MaterialResponse(
-        id=mat.id,
-        course_id=mat.course_id,
-        filename=mat.filename,
-        material_type=mat.material_type.value,
-        uploaded_at=mat.uploaded_at,
-    )
+    return MaterialResponse(id=mat.id, course_id=mat.course_id, filename=mat.filename, material_type=mat.material_type.value, uploaded_at=mat.uploaded_at)
 
 
 @router.get("/{course_id}/materials", response_model=list[MaterialResponse])
-def list_materials(course_id: int, db: Session = Depends(get_db)):
+def list_materials(course_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     mats = db.query(Material).filter(Material.course_id == course_id).all()
-    return [
-        MaterialResponse(
-            id=m.id,
-            course_id=m.course_id,
-            filename=m.filename,
-            material_type=m.material_type.value,
-            uploaded_at=m.uploaded_at,
-        )
-        for m in mats
-    ]
+    return [MaterialResponse(id=m.id, course_id=m.course_id, filename=m.filename, material_type=m.material_type.value, uploaded_at=m.uploaded_at) for m in mats]
 
 
 @router.delete("/{course_id}/materials/{material_id}")
-def delete_material(course_id: int, material_id: int, db: Session = Depends(get_db)):
+def delete_material(course_id: int, material_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     mat = db.query(Material).filter(Material.id == material_id, Material.course_id == course_id).first()
     if not mat:
         raise HTTPException(status_code=404, detail="Material not found")
@@ -206,25 +139,24 @@ def delete_material(course_id: int, material_id: int, db: Session = Depends(get_
     return {"ok": True}
 
 
-# ── Syllabus Parsing ───────────────────────────────────
+# ── Syllabus Parsing ────────────────────────────────────
 
 @router.post("/{course_id}/parse-syllabus")
-def parse_course_syllabus(course_id: int, db: Session = Depends(get_db)):
-    """Find the syllabus material for this course and AI-parse it into assignments."""
-    course = db.query(Course).filter(Course.id == course_id).first()
+def parse_course_syllabus(course_id: int, user: User = Depends(require_credits(1)), db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    syllabus = db.query(Material).filter(Material.course_id == course_id, Material.material_type == MaterialType.SYLLABUS).first()
+    if not syllabus or not syllabus.extracted_text:
+        raise HTTPException(status_code=404, detail="No syllabus found")
+    return parse_syllabus(syllabus.extracted_text, course.name)
 
-    syllabus = (
-        db.query(Material)
-        .filter(Material.course_id == course_id, Material.material_type == MaterialType.SYLLABUS)
-        .first()
+
+# ── Helper ──────────────────────────────────────────────
+
+def _course_response(c: Course) -> CourseResponse:
+    return CourseResponse(
+        id=c.id, name=c.name, code=c.code, professor=c.professor,
+        semester=c.semester, color=c.color, created_at=c.created_at,
+        material_count=len(c.materials), assignment_count=len(c.assignments),
     )
-    if not syllabus:
-        raise HTTPException(status_code=404, detail="No syllabus uploaded for this course. Upload one first.")
-
-    if not syllabus.extracted_text:
-        raise HTTPException(status_code=400, detail="Syllabus text extraction failed. Try re-uploading.")
-
-    result = parse_syllabus(syllabus.extracted_text, course.name)
-    return result

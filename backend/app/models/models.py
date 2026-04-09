@@ -21,10 +21,25 @@ class AssignmentStatus(str, enum.Enum):
     DONE = "done"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(100), default="")
+    credits = Column(Integer, default=3)  # Free tier: 3 generations
+    plan = Column(String(20), default="free")  # free, starter, pro
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    courses = relationship("Course", back_populates="user", cascade="all, delete-orphan")
+
+
 class Course(Base):
     __tablename__ = "courses"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(200), nullable=False)
     code = Column(String(20), nullable=False)
     professor = Column(String(100), default="")
@@ -32,6 +47,7 @@ class Course(Base):
     color = Column(String(7), default="#5AF0FF")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    user = relationship("User", back_populates="courses")
     materials = relationship("Material", back_populates="course", cascade="all, delete-orphan")
     assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
 
@@ -58,7 +74,7 @@ class Assignment(Base):
     title = Column(String(300), nullable=False)
     description = Column(Text, default="")
     due_date = Column(DateTime, nullable=True)
-    weight = Column(Float, default=0.0)  # percentage of final grade
+    weight = Column(Float, default=0.0)
     status = Column(Enum(AssignmentStatus), default=AssignmentStatus.NOT_STARTED)
     ai_summary = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -87,14 +103,5 @@ class StudyGuide(Base):
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     title = Column(String(300), nullable=False)
     content = Column(Text, nullable=False)
-    topics_covered = Column(Text, default="")  # JSON array of topic strings
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-
-class WeeklyPlan(Base):
-    __tablename__ = "weekly_plans"
-
-    id = Column(Integer, primary_key=True, index=True)
-    week_start = Column(DateTime, nullable=False)
-    plan_json = Column(Text, nullable=False)  # Full JSON plan
+    topics_covered = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -6,7 +6,7 @@ AI Service — Dual Engine
 
 import json
 from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
-from app.core.groq_client import call_groq_json
+from app.core.groq_client import call_groq_json, call_groq_vision_json
 
 
 # ── Context Budget (chars) ──────────────────────────────
@@ -190,8 +190,11 @@ def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 409
 
 def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:
     """Route AI calls that include page images (for seeing figures/graphs)."""
-    if image_paths and premium:
-        return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
+    if image_paths:
+        if premium:
+            return call_claude_multimodal_json(system, user_prompt, image_paths, max_tokens=max_tokens)
+        else:
+            return call_groq_vision_json(system, user_prompt, image_paths, max_tokens=min(max_tokens, 8000))
     else:
         return _call_ai(system, user_prompt, premium, max_tokens=max_tokens)
 

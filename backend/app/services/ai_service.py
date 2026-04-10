@@ -363,4 +363,6 @@ For each question:
 
 Use ONLY methods from the provided course materials. Match the professor's notation. Explain everything clearly.
 
-Return JSON: {"study_version": "...complete walkthrough with explanations...", "key_concepts": ["concept1", "concept2", ...]}"""
+CRITICAL: You MUST complete EVERY SINGLE QUESTION. Never abbreviate, summarize, or skip remaining questions. Never write "remaining questions would follow similar pattern" or "additional questions would continue". If there are 8 questions, you must provide detailed walkthroughs for all 8. Incomplete responses are unacceptable.
+
+Return JSON: {"study_version": "...complete walkthrough for ALL questions with full explanations...", "key_concepts": ["concept1", "concept2", ...]}"""

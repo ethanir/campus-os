@@ -201,9 +201,13 @@ def get_context_usage(course_id: int, user: User = Depends(get_current_user), db
     course = db.query(Course).filter(Course.id == course_id, Course.user_id == user.id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    from app.models.models import Assignment
     mats = db.query(Material).filter(Material.course_id == course_id).all()
-    total_chars = sum(len(m.extracted_text or "") for m in mats)
-    max_chars = 200000 if user.has_purchased else 30000
+    assignments = db.query(Assignment).filter(Assignment.course_id == course_id).all()
+    mat_chars = sum(len(m.extracted_text or "") for m in mats)
+    assign_chars = sum(len(a.description or "") for a in assignments)
+    total_chars = mat_chars + assign_chars
+    max_chars = 200000 if user.has_purchased else 50000
     return {
         "used_chars": total_chars,
         "max_chars": max_chars,

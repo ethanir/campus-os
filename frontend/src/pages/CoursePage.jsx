@@ -158,7 +158,7 @@ export default function CoursePage() {
         {/* Materials */}
         <div>
           <div className="flex justify-between items-center mb-3">
-          {contextUsage && contextUsage.used_pct > 0 && (
+          {contextUsage && (
             <div className="mb-4 rounded-xl p-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <div className="flex justify-between items-center mb-1.5">
                 <span className="font-mono text-[9px] tracking-wider font-bold" style={{ color: "var(--text-dim)" }}>AI CONTEXT USAGE</span>

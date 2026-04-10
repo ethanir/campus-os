@@ -14,7 +14,7 @@ from app.core.groq_client import call_groq_json, call_groq_vision_json
 # Reserve 20k tokens for system prompt + response = ~80k chars.
 # That leaves ~720k chars for context. We cap at 600k to be safe.
 MAX_CONTEXT_CHARS = 200000
-MAX_CONTEXT_CHARS_FREE = 30000  # ~200k chars keeps Sonnet costs at ~$0.15/call
+MAX_CONTEXT_CHARS_FREE = 50000  # ~200k chars keeps Sonnet costs at ~$0.15/call
 
 
 # ── System Prompts ──────────────────────────────────────

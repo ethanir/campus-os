@@ -151,3 +151,18 @@ def change_password(data: ChangePasswordRequest, user: User = Depends(get_curren
     user.password_hash = hash_password(data.new_password)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/admin/add-credits")
+def admin_add_credits(email: str, credits: int = 10, secret: str = "", db: Session = Depends(get_db)):
+    import os
+    if secret != os.getenv("ADMIN_SECRET", "yourcourseai-admin-2026"):
+        raise HTTPException(status_code=403, detail="Nope")
+    user = db.query(User).filter(User.email == email.lower().strip()).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.credits += credits
+    user.has_purchased = True
+    user.plan = "paid"
+    db.commit()
+    return {"email": user.email, "credits": user.credits, "has_purchased": True}

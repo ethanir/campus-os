@@ -126,6 +126,17 @@ async def upload_material(
         )
     else:
         extracted = extract_text(str(file_path))
+    
+    # Check if adding this material would exceed context limit
+    from app.services.ai_service import MAX_CONTEXT_CHARS, MAX_CONTEXT_CHARS_FREE
+    max_chars = MAX_CONTEXT_CHARS if user.has_purchased else MAX_CONTEXT_CHARS_FREE
+    existing_chars = sum(len(m.extracted_text or "") for m in course.materials)
+    if existing_chars + len(extracted) > max_chars:
+        import os; os.remove(str(file_path))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Adding this file would exceed your context limit ({max_chars:,} chars). Remove some materials first or upload a shorter file."
+        )
         mat = Material(
             course_id=course_id,
             filename=file.filename,
@@ -207,7 +218,7 @@ def get_context_usage(course_id: int, user: User = Depends(get_current_user), db
     mat_chars = sum(len(m.extracted_text or "") for m in mats)
     assign_chars = sum(len(a.description or "") for a in assignments)
     total_chars = mat_chars + assign_chars
-    max_chars = 200000 if user.has_purchased else 50000
+    max_chars = 150000 if user.has_purchased else 50000
     return {
         "used_chars": total_chars,
         "max_chars": max_chars,

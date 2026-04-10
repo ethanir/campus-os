@@ -125,4 +125,22 @@ def _parse_json(raw: str) -> dict:
         start = raw.find("{")
         if start >= 0:
             raw = raw[start:]
-    return json.loads(raw, strict=False)
+    # Find the last closing brace in case of trailing garbage
+    last_brace = raw.rfind("}")
+    if last_brace >= 0:
+        raw = raw[:last_brace + 1]
+    try:
+        return json.loads(raw, strict=False)
+    except json.JSONDecodeError:
+        # Try fixing common issues: unescaped newlines in strings
+        import re
+        cleaned = re.sub(r'(?<!\\)\\n', '\\\\n', raw)
+        try:
+            return json.loads(cleaned, strict=False)
+        except json.JSONDecodeError:
+            # Last resort: extract submission/study_version field manually
+            for key in ["submission", "study_version", "draft", "content"]:
+                match = re.search(r'"%s"\\s*:\\s*"(.*?)(?:(?<!\\\\)")' % key, raw, re.DOTALL)
+                if match:
+                    return {key: match.group(1).replace(\'\\\\n\', \'\\n\').replace(\'\\\\"\'  , \'\"\'), "notes": "JSON was malformed, content may be incomplete"}
+            raise GroqError("Free AI returned a malformed response. Try again — results vary between attempts.")

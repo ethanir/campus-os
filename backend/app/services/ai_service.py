@@ -74,6 +74,11 @@ Go back and verify every answer one more time. Check:
 - For graph problems: did you identify the exact graph structure (C4, K1,3, etc.)?
 - For function ordering: did you verify each adjacent comparison with limits?
 
+CRITICAL — DUPLICATE CHECK:
+- Every question has UNIQUE data. If two questions look similar, RE-READ both from the assignment text. They will have DIFFERENT inputs (different functions, different graphs, different values).
+- NEVER copy an answer from one question to another. If your answer for Q7 looks identical to Q6, you misread one of them — go back and find the actual data for each.
+- When a question says "arrange these functions", read the EXACT list of functions from THAT specific question in the assignment text. Do not reuse a list from a different question.
+
 Flag any answers where you are less than 95% confident in the notes field.
 
 Return JSON: {"submission": "...complete turn-in ready work, one question at a time, with full solutions...", "notes": "...confidence level per question and any concerns..."}"""
@@ -227,7 +232,9 @@ def _verify_submission(submission_text: str, assignment_text: str, materials_tex
 --- COURSE MATERIALS (for reference) ---
 {context[:100000]}
 
-Check every answer for correctness. Fix any errors you find."""
+Check every answer for correctness. Fix any errors you find.
+
+ALSO CHECK FOR DUPLICATES: If two questions have identical or near-identical answers, one of them is almost certainly wrong. Re-read both questions from the assignment text — they have different inputs. Fix the one that used the wrong data."""
     
     try:
         if image_paths:

@@ -251,11 +251,14 @@ def generate_homework_turnin(title: str, description: str, materials_text: str, 
     context = _build_context(description, materials_text, budget=budget)
     user_prompt = f"Assignment: {title}\n\n{context}"
     
+    # Use shorter system prompt for free tier to stay within Groq limits
+    system = HOMEWORK_TURNIN_SYSTEM if premium else HOMEWORK_TURNIN_SYSTEM_FREE
+    
     # First pass: solve
     if image_paths:
-        result = _call_ai_with_images(HOMEWORK_TURNIN_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
+        result = _call_ai_with_images(system, user_prompt, image_paths, premium, max_tokens=12000)
     else:
-        result = _call_ai(HOMEWORK_TURNIN_SYSTEM, user_prompt, premium, max_tokens=12000)
+        result = _call_ai(system, user_prompt, premium, max_tokens=12000)
     
     # Second pass: verify and fix errors
     if result.get("submission"):
@@ -296,9 +299,10 @@ def generate_homework_study(title: str, description: str, materials_text: str, p
     budget = MAX_CONTEXT_CHARS if premium else MAX_CONTEXT_CHARS_FREE
     context = _build_context(description, materials_text, budget=budget)
     user_prompt = f"Assignment: {title}\n\n{context}"
+    system = HOMEWORK_STUDY_SYSTEM if premium else HOMEWORK_STUDY_SYSTEM_FREE
     if image_paths:
-        return _call_ai_with_images(HOMEWORK_STUDY_SYSTEM, user_prompt, image_paths, premium, max_tokens=12000)
-    return _call_ai(HOMEWORK_STUDY_SYSTEM, user_prompt, premium, max_tokens=12000)
+        return _call_ai_with_images(system, user_prompt, image_paths, premium, max_tokens=12000)
+    return _call_ai(system, user_prompt, premium, max_tokens=12000)
 
 
 def generate_task_steps(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
@@ -326,3 +330,30 @@ def parse_syllabus(syllabus_text: str, course_name: str, premium: bool = False) 
 def get_context_usage(materials_text: str) -> dict:
     """Public function for the API to check context usage."""
     return _get_context_usage(materials_text)
+
+
+HOMEWORK_TURNIN_SYSTEM_FREE = """You are a top student completing a homework assignment for a perfect score.
+
+Rules:
+- Use ONLY methods, notation, and techniques from the provided course materials
+- Show all work clearly, one question at a time
+- Match the professor's exact notation and style
+- For each question: identify the concept, solve with full rigor, verify your answer
+- If a problem references a figure, check the course materials or context notes for its description
+- Write like a top student, not like an AI
+- Output ONLY your final, clean solutions — no false starts or self-corrections
+
+Return JSON: {"submission": "...complete turn-in ready work...", "notes": "...confidence level and any concerns..."}"""
+
+HOMEWORK_STUDY_SYSTEM_FREE = """You are a patient tutor helping a student understand their homework step by step.
+
+For each question:
+1. Restate what the problem asks in plain English
+2. Identify which concept from the course applies and why
+3. Solve step by step with full explanation of every step
+4. Verify the answer is correct
+5. Note common mistakes students make on this type of problem
+
+Use ONLY methods from the provided course materials. Match the professor's notation. Explain everything clearly.
+
+Return JSON: {"study_version": "...complete walkthrough with explanations...", "key_concepts": ["concept1", "concept2", ...]}"""

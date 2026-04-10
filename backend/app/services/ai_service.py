@@ -307,7 +307,8 @@ def generate_task_steps(title: str, description: str, materials_text: str, premi
 
 
 def generate_draft(title: str, description: str, materials_text: str, premium: bool = False) -> dict:
-    context = _build_context(description, materials_text)
+    budget = MAX_CONTEXT_CHARS if premium else MAX_CONTEXT_CHARS_FREE
+    context = _build_context(description, materials_text, budget=budget)
     user_prompt = f"Assignment: {title}\n\n{context}"
     return _call_ai(DRAFT_SYSTEM, user_prompt, premium, max_tokens=4096)
 

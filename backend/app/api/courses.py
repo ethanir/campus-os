@@ -203,7 +203,7 @@ def get_context_usage(course_id: int, user: User = Depends(get_current_user), db
         raise HTTPException(status_code=404, detail="Course not found")
     mats = db.query(Material).filter(Material.course_id == course_id).all()
     total_chars = sum(len(m.extracted_text or "") for m in mats)
-    max_chars = 200000 if user.has_purchased else 80000
+    max_chars = 200000 if user.has_purchased else 30000
     return {
         "used_chars": total_chars,
         "max_chars": max_chars,

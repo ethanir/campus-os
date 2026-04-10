@@ -3,6 +3,30 @@ import anthropic
 
 from app.core.config import settings
 
+
+def _safe_json_parse(raw: str) -> dict:
+    """Parse JSON from Claude response, handling empty/malformed responses."""
+    if not raw or not raw.strip():
+        raise ValueError("AI returned empty response — may have timed out. Try again.")
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+    try:
+        return _safe_json_parse(cleaned)
+    except json.JSONDecodeError:
+        # Try to extract JSON object from the response
+        import re
+        match = re.search(r'\{[\s\S]*\}', cleaned)
+        if match:
+            try:
+                return json.loads(match.group(), strict=False)
+            except json.JSONDecodeError:
+                pass
+        raise ValueError(f"AI returned invalid JSON. Try again.")
+
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=120.0)
 
 
@@ -33,7 +57,7 @@ def call_claude_json(system_prompt: str, user_prompt: str, max_tokens: int = 409
         cleaned = cleaned.rsplit("```", 1)[0]
     cleaned = cleaned.strip()
 
-    return json.loads(cleaned, strict=False)
+    return _safe_json_parse(cleaned)
 
 
 def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: str, text_prompt: str = "", max_tokens: int = 4096) -> dict:
@@ -66,7 +90,7 @@ def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: s
         raw = raw.split("\n", 1)[1]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
-    return json.loads(raw.strip(), strict=False)
+    return _safe_json_parse(raw)
 
 
 def call_claude_multimodal_json(system_prompt: str, user_prompt: str, image_paths: list[str], max_tokens: int = 4096) -> dict:
@@ -122,7 +146,7 @@ def call_claude_multimodal_json(system_prompt: str, user_prompt: str, image_path
         raw = raw.split("\n", 1)[1]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
-    return json.loads(raw.strip(), strict=False)
+    return _safe_json_parse(raw)
 
 
 def call_claude_opus(system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:
@@ -149,7 +173,7 @@ def call_claude_opus_json(system_prompt: str, user_prompt: str, max_tokens: int 
         cleaned = cleaned.split("\n", 1)[1]
     if cleaned.endswith("```"):
         cleaned = cleaned.rsplit("```", 1)[0]
-    return json.loads(cleaned.strip(), strict=False)
+    return _safe_json_parse(cleaned)
 
 
 def call_claude_opus_multimodal_json(system_prompt: str, user_prompt: str, image_paths: list[str], max_tokens: int = 4096) -> dict:
@@ -197,4 +221,4 @@ def call_claude_opus_multimodal_json(system_prompt: str, user_prompt: str, image
         raw = raw.split("\n", 1)[1]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
-    return json.loads(raw.strip(), strict=False)
+    return _safe_json_parse(raw)

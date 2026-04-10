@@ -225,7 +225,7 @@ def create_homework_study(assignment_id: int, user: User = Depends(require_credi
     images = _gather_course_images(db, assignment.course_id)
     result = generate_homework_study(assignment.title, assignment.description, context, premium=user.has_purchased, image_paths=images)
     deduct_credits(user, db)
-    _save_generation(db, assignment.course_id, assignment_id, "study", f"Study: {assignment.title}", result, result.get("key_concepts", []))
+    _save_generation(db, assignment.course_id, assignment_id, "study", f"Study: {assignment.title}", result, ", ".join(result.get("key_concepts", [])))
     return result
 
 

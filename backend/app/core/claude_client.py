@@ -28,6 +28,7 @@ def _safe_json_parse(raw: str) -> dict:
         raise ValueError(f"AI returned invalid JSON. Try again.")
 
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=120.0)
+client_long = anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=600.0)
 
 
 def call_claude(system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:
@@ -226,7 +227,7 @@ def call_claude_opus_multimodal_json(system_prompt: str, user_prompt: str, image
 
 def call_claude_opus_thinking_json(system_prompt: str, user_prompt: str, thinking_budget: int = 10000, max_tokens: int = 16000) -> dict:
     """Call Opus with extended thinking for highest quality reasoning."""
-    message = client.messages.create(
+    message = client_long.messages.create(
         model="claude-opus-4-20250514",
         max_tokens=max_tokens,
         thinking={

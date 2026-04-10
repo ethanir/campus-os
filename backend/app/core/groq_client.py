@@ -5,28 +5,53 @@ import httpx
 from app.core.config import settings
 
 
+class GroqError(Exception):
+    """Friendly error for Groq API failures."""
+    pass
+
+
+def _handle_groq_error(e):
+    """Convert Groq HTTP errors into user-friendly messages."""
+    status = e.response.status_code if hasattr(e, 'response') else 0
+    if status == 413:
+        raise GroqError("Your course materials are too large for the free AI tier. Try removing some materials or upgrade to Premium for 6x more context.")
+    elif status == 429:
+        raise GroqError("Free AI is rate-limited right now. Wait a moment and try again, or upgrade to Premium for unlimited speed.")
+    elif status == 503 or status == 502:
+        raise GroqError("Free AI is temporarily unavailable. Try again in a minute, or upgrade to Premium for reliable access.")
+    else:
+        raise GroqError(f"Free AI returned an error (HTTP {status}). Try again or upgrade to Premium for more reliable results.")
+
+
 def call_groq_json(system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> dict:
     """Send a message to Groq (Llama 3.3 70B) and parse JSON response."""
     system_with_json = system_prompt + "\n\nRespond ONLY with valid JSON. No markdown, no backticks, no preamble."
     
-    response = httpx.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.groq_api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": settings.groq_model,
-            "messages": [
-                {"role": "system", "content": system_with_json},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": min(max_tokens, 8000),
-            "temperature": 0.3,
-        },
-        timeout=120.0,
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.groq_model,
+                "messages": [
+                    {"role": "system", "content": system_with_json},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": min(max_tokens, 8000),
+                "temperature": 0.3,
+            },
+            timeout=120.0,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        _handle_groq_error(e)
+    except httpx.TimeoutException:
+        raise GroqError("Free AI timed out. Your materials may be too large, or the server is busy. Try again or upgrade to Premium.")
+    except httpx.RequestError:
+        raise GroqError("Could not reach free AI server. Try again in a moment.")
     
     raw = response.json()["choices"][0]["message"]["content"].strip()
     return _parse_json(raw)
@@ -38,7 +63,6 @@ def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: lis
     
     content_parts = []
     
-    # Add images (max 2, keep payload small for free tier)
     added = 0
     for img_path in (image_paths or []):
         if added >= 2:
@@ -58,27 +82,33 @@ def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: lis
         except Exception:
             continue
     
-    # Add text prompt
     content_parts.append({"type": "text", "text": user_prompt})
     
-    response = httpx.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.groq_api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-            "messages": [
-                {"role": "system", "content": system_with_json},
-                {"role": "user", "content": content_parts},
-            ],
-            "max_tokens": min(max_tokens, 8000),
-            "temperature": 0.3,
-        },
-        timeout=120.0,
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "messages": [
+                    {"role": "system", "content": system_with_json},
+                    {"role": "user", "content": content_parts},
+                ],
+                "max_tokens": min(max_tokens, 8000),
+                "temperature": 0.3,
+            },
+            timeout=120.0,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        _handle_groq_error(e)
+    except httpx.TimeoutException:
+        raise GroqError("Free AI timed out processing your images. Try with fewer reference images or upgrade to Premium.")
+    except httpx.RequestError:
+        raise GroqError("Could not reach free AI server. Try again in a moment.")
     
     raw = response.json()["choices"][0]["message"]["content"].strip()
     return _parse_json(raw)

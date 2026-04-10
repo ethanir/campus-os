@@ -1,8 +1,10 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.database import init_db
+from app.core.groq_client import GroqError
 from app.api import auth, courses, assignments, planner
 
 app = FastAPI(
@@ -34,10 +36,14 @@ app.include_router(assignments.router)
 app.include_router(planner.router)
 
 
+@app.exception_handler(GroqError)
+async def groq_error_handler(request, exc):
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
 @app.on_event("startup")
 def on_startup():
     init_db()
-    # Auto-migrate: add columns if missing
     from app.core.database import engine
     import sqlalchemy
     migrations = [
@@ -52,7 +58,7 @@ def on_startup():
                 try:
                     conn.execute(sqlalchemy.text(sql))
                 except Exception:
-                    pass  # Column already exists or migration already applied
+                    pass
             conn.commit()
     except Exception:
         pass

@@ -66,10 +66,10 @@ def _extract_page_with_superscripts(page) -> str:
                 line_y = line["spans"][0]["origin"][1]
                 y_offset = line_y - span_y  # positive = above baseline
                 
-                if size_ratio < 0.85 and y_offset > 1:
+                if y_offset > 2:
                     # Superscript: smaller font, positioned above baseline
                     line_text += "^(" + text.strip() + ")"
-                elif size_ratio < 0.85 and y_offset < -1:
+                elif y_offset < -2:
                     # Subscript: smaller font, positioned below baseline
                     line_text += "_(" + text.strip() + ")"
                 else:

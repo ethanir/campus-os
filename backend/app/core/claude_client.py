@@ -15,7 +15,7 @@ def _safe_json_parse(raw: str) -> dict:
         cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
     try:
-        return _safe_json_parse(cleaned)
+        return json.loads(cleaned, strict=False)
     except json.JSONDecodeError:
         # Try to extract JSON object from the response
         import re
@@ -57,7 +57,7 @@ def call_claude_json(system_prompt: str, user_prompt: str, max_tokens: int = 409
         cleaned = cleaned.rsplit("```", 1)[0]
     cleaned = cleaned.strip()
 
-    return _safe_json_parse(cleaned)
+    return json.loads(cleaned, strict=False)
 
 
 def call_claude_vision_json(system_prompt: str, image_data: bytes, media_type: str, text_prompt: str = "", max_tokens: int = 4096) -> dict:
@@ -173,7 +173,7 @@ def call_claude_opus_json(system_prompt: str, user_prompt: str, max_tokens: int 
         cleaned = cleaned.split("\n", 1)[1]
     if cleaned.endswith("```"):
         cleaned = cleaned.rsplit("```", 1)[0]
-    return _safe_json_parse(cleaned)
+    return json.loads(cleaned, strict=False)
 
 
 def call_claude_opus_multimodal_json(system_prompt: str, user_prompt: str, image_paths: list[str], max_tokens: int = 4096) -> dict:

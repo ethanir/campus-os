@@ -77,9 +77,10 @@ Go back and verify every answer one more time. Check:
 - For function ordering: did you verify each adjacent comparison with limits?
 
 CRITICAL — DUPLICATE CHECK:
-- Every question has UNIQUE data. If two questions look similar, RE-READ both from the assignment text. They will have DIFFERENT inputs (different functions, different graphs, different values).
-- NEVER copy an answer from one question to another. If your answer for Q7 looks identical to Q6, you misread one of them — go back and find the actual data for each.
-- When a question says "arrange these functions", read the EXACT list of functions from THAT specific question in the assignment text. Do not reuse a list from a different question.
+- Every question has UNIQUE data. If two questions look similar, RE-READ both from the assignment text. They WILL have DIFFERENT inputs.
+- NEVER copy an answer from one question to another.
+- For EVERY question that involves a list (of functions, values, graphs, etc.), you MUST start your answer by writing: "The functions listed in this question are: ..." copying them EXACTLY from the assignment text. Then solve using those specific functions. This is mandatory — do not skip this step.
+- If two of your answers look similar, you made an error. Stop and re-read the original questions character by character.
 
 Flag any answers where you are less than 95% confident in the notes field.
 

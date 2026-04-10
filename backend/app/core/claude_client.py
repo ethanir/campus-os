@@ -222,3 +222,25 @@ def call_claude_opus_multimodal_json(system_prompt: str, user_prompt: str, image
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
     return _safe_json_parse(raw)
+
+
+def call_claude_opus_thinking_json(system_prompt: str, user_prompt: str, thinking_budget: int = 10000, max_tokens: int = 16000) -> dict:
+    """Call Opus with extended thinking for highest quality reasoning."""
+    message = client.messages.create(
+        model="claude-opus-4-20250514",
+        max_tokens=max_tokens,
+        thinking={
+            "type": "enabled",
+            "budget_tokens": thinking_budget,
+        },
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    # Extract the text block (skip thinking blocks)
+    raw = ""
+    for block in message.content:
+        if block.type == "text":
+            raw = block.text
+            break
+    return _safe_json_parse(raw)
+

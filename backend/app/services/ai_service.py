@@ -5,7 +5,7 @@ AI Service — Dual Engine
 """
 
 import json
-from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json
+from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json, call_claude_opus_thinking_json
 from app.core.groq_client import call_groq_json, call_groq_vision_json
 
 
@@ -199,11 +199,16 @@ def _get_context_usage(materials_text: str) -> dict:
 # ── Routing Logic ───────────────────────────────────────
 
 def _call_ai(system: str, user_prompt: str, premium: bool, max_tokens: int = 4096) -> dict:
-    """Route to Sonnet (paid) or Gemini (free)."""
+    """Route to Sonnet (paid) or Groq (free)."""
     if premium:
         return call_claude_json(system, user_prompt, max_tokens=max_tokens)
     else:
         return call_groq_json(system, user_prompt, max_tokens=min(max_tokens, 8000))
+
+
+def _call_ai_opus_thinking(system: str, user_prompt: str, max_tokens: int = 16000) -> dict:
+    """Use Opus with extended thinking for highest quality (premium turn-in only)."""
+    return call_claude_opus_thinking_json(system, user_prompt, thinking_budget=10000, max_tokens=max_tokens)
 
 
 def _call_ai_with_images(system: str, user_prompt: str, image_paths: list[str], premium: bool, max_tokens: int = 4096) -> dict:
@@ -277,7 +282,7 @@ def generate_homework_turnin(title: str, description: str, materials_text: str, 
     if image_paths:
         result = _call_ai_with_images(system, user_prompt, image_paths, premium, max_tokens=12000)
     else:
-        result = _call_ai(system, user_prompt, premium, max_tokens=12000)
+        result = _call_ai_opus_thinking(system, user_prompt, max_tokens=16000) if premium else _call_ai(system, user_prompt, premium, max_tokens=12000)
     
     # Second pass: verify and fix errors
     if result.get("submission"):

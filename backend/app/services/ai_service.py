@@ -282,7 +282,7 @@ def generate_homework_turnin(title: str, description: str, materials_text: str, 
     if image_paths:
         result = _call_ai_with_images(system, user_prompt, image_paths, premium, max_tokens=12000)
     else:
-        result = _call_ai_opus_thinking(system, user_prompt, max_tokens=16000) if premium else _call_ai(system, user_prompt, premium, max_tokens=12000)
+        result = _call_ai_opus_thinking(system, user_prompt, max_tokens=32000) if premium else _call_ai(system, user_prompt, premium, max_tokens=12000)
     
     # Second pass: verify and fix errors
     if result.get("submission"):

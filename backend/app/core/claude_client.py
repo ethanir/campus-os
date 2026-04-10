@@ -243,5 +243,7 @@ def call_claude_opus_thinking_json(system_prompt: str, user_prompt: str, thinkin
         if block.type == "text":
             raw = block.text
             break
+    if not raw:
+        raise ValueError("Opus thinking used all tokens for reasoning — no output generated. Try again.")
     return _safe_json_parse(raw)
 

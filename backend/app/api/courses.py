@@ -208,7 +208,7 @@ def get_context_usage(course_id: int, user: User = Depends(get_current_user), db
     mat_chars = sum(len(m.extracted_text or "") for m in mats)
     assign_chars = sum(len(a.description or "") for a in assignments)
     total_chars = mat_chars + assign_chars
-    max_chars = 150000 if user.has_purchased else 50000
+    max_chars = 200000 if user.has_purchased else 50000
     return {
         "used_chars": total_chars,
         "max_chars": max_chars,

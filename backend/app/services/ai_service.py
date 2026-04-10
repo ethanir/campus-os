@@ -13,7 +13,7 @@ from app.core.groq_client import call_groq_json, call_groq_vision_json
 # Claude Sonnet supports ~200k tokens. 1 token ≈ 4 chars.
 # Reserve 20k tokens for system prompt + response = ~80k chars.
 # That leaves ~720k chars for context. We cap at 600k to be safe.
-MAX_CONTEXT_CHARS = 150000
+MAX_CONTEXT_CHARS = 200000
 MAX_CONTEXT_CHARS_FREE = 50000  # ~200k chars keeps Sonnet costs at ~$0.15/call
 
 

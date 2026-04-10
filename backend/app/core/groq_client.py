@@ -1,4 +1,5 @@
 import json
+import re
 import base64
 from pathlib import Path
 import httpx
@@ -26,7 +27,7 @@ def _handle_groq_error(e):
 def call_groq_json(system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> dict:
     """Send a message to Groq (Llama 3.3 70B) and parse JSON response."""
     system_with_json = system_prompt + "\n\nRespond ONLY with valid JSON. No markdown, no backticks, no preamble."
-    
+
     try:
         response = httpx.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -52,7 +53,7 @@ def call_groq_json(system_prompt: str, user_prompt: str, max_tokens: int = 4096)
         raise GroqError("Free AI timed out. Your materials may be too large, or the server is busy. Try again or upgrade to Premium.")
     except httpx.RequestError:
         raise GroqError("Could not reach free AI server. Try again in a moment.")
-    
+
     raw = response.json()["choices"][0]["message"]["content"].strip()
     return _parse_json(raw)
 
@@ -60,9 +61,9 @@ def call_groq_json(system_prompt: str, user_prompt: str, max_tokens: int = 4096)
 def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: list, max_tokens: int = 4096) -> dict:
     """Send text + images to Groq (Llama 4 Scout) and parse JSON response."""
     system_with_json = system_prompt + "\n\nRespond ONLY with valid JSON. No markdown, no backticks, no preamble."
-    
+
     content_parts = []
-    
+
     added = 0
     for img_path in (image_paths or []):
         if added >= 2:
@@ -81,9 +82,9 @@ def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: lis
             added += 1
         except Exception:
             continue
-    
+
     content_parts.append({"type": "text", "text": user_prompt})
-    
+
     try:
         response = httpx.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -109,38 +110,58 @@ def call_groq_vision_json(system_prompt: str, user_prompt: str, image_paths: lis
         raise GroqError("Free AI timed out processing your images. Try with fewer reference images or upgrade to Premium.")
     except httpx.RequestError:
         raise GroqError("Could not reach free AI server. Try again in a moment.")
-    
+
     raw = response.json()["choices"][0]["message"]["content"].strip()
     return _parse_json(raw)
 
 
 def _parse_json(raw: str) -> dict:
     """Parse JSON from Groq response, handling common issues."""
+    # Strip markdown fences
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
     raw = raw.strip()
+
+    # Find JSON start
     if not raw.startswith("{") and not raw.startswith("["):
         start = raw.find("{")
         if start >= 0:
             raw = raw[start:]
-    # Find the last closing brace in case of trailing garbage
+
+    # Find last closing brace (trim trailing garbage)
     last_brace = raw.rfind("}")
     if last_brace >= 0:
         raw = raw[:last_brace + 1]
+
+    # Attempt 1: direct parse
     try:
         return json.loads(raw, strict=False)
     except json.JSONDecodeError:
-        # Try fixing common issues: unescaped newlines in strings
-        import re
-        cleaned = re.sub(r'(?<!\\)\\n', '\\\\n', raw)
-        try:
-            return json.loads(cleaned, strict=False)
-        except json.JSONDecodeError:
-            # Last resort: extract submission/study_version field manually
-            for key in ["submission", "study_version", "draft", "content"]:
-                match = re.search(r'"%s"\\s*:\\s*"(.*?)(?:(?<!\\\\)")' % key, raw, re.DOTALL)
-                if match:
-                    return {key: match.group(1).replace(\'\\\\n\', \'\\n\').replace(\'\\\\"\'  , \'\"\'), "notes": "JSON was malformed, content may be incomplete"}
-            raise GroqError("Free AI returned a malformed response. Try again — results vary between attempts.")
+        pass
+
+    # Attempt 2: fix unescaped newlines/quotes inside JSON strings
+    try:
+        fixed = raw.replace("\r\n", "\\n").replace("\r", "\\n")
+        return json.loads(fixed, strict=False)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt 3: extract the main content field with regex
+    for key in ["submission", "study_version", "draft", "content"]:
+        pattern = r'"' + key + r'"\s*:\s*"'
+        match = re.search(pattern, raw)
+        if match:
+            start_idx = match.end()
+            i = start_idx
+            while i < len(raw):
+                if raw[i] == '\\' and i + 1 < len(raw):
+                    i += 2
+                    continue
+                if raw[i] == '"':
+                    value = raw[start_idx:i]
+                    return {key: value, "notes": "Response was partially malformed but content was recovered."}
+                i += 1
+
+    raise GroqError("Free AI returned a malformed response. Try again — results vary between attempts.")

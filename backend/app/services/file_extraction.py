@@ -22,7 +22,7 @@ def extract_text(file_path: str) -> str:
     return extractor(file_path)
 
 
-def extract_pdf_page_images(file_path: str, output_dir: str, dpi: int = 120, max_pages: int = 30) -> list[str]:
+def extract_pdf_page_images(file_path: str, output_dir: str, dpi: int = 72, max_pages: int = 30) -> list[str]:
     """Rasterize PDF pages that contain figures/images as PNGs.
     
     Returns list of saved image file paths.

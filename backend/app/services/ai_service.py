@@ -5,7 +5,7 @@ AI Service — Dual Engine
 """
 
 import json
-from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json
+from app.core.claude_client import call_claude_json, call_claude_vision_json, call_claude_multimodal_json, call_claude_opus_json, call_claude_opus_multimodal_json
 from app.core.groq_client import call_groq_json, call_groq_vision_json
 
 
@@ -250,9 +250,9 @@ ALSO CHECK FOR DUPLICATES: If two questions have identical or near-identical ans
     
     try:
         if image_paths:
-            return _call_ai_with_images(VERIFICATION_SYSTEM, user_prompt, image_paths, premium, max_tokens=6000)
+            return call_claude_opus_multimodal_json(VERIFICATION_SYSTEM, user_prompt, image_paths, max_tokens=6000) if premium else _call_ai_with_images(VERIFICATION_SYSTEM, user_prompt, image_paths, premium, max_tokens=6000)
         else:
-            return _call_ai(VERIFICATION_SYSTEM, user_prompt, premium, max_tokens=6000)
+            return call_claude_opus_json(VERIFICATION_SYSTEM, user_prompt, max_tokens=6000) if premium else _call_ai(VERIFICATION_SYSTEM, user_prompt, premium, max_tokens=6000)
     except Exception:
         return {"corrections": [], "verified_ok": ["all"]}
 

@@ -30,10 +30,11 @@ export const importFromScreenshot = (file) => {
 };
 
 // ── Materials ──────────────────────────────────────────
-export const uploadMaterial = (courseId, file, materialType) => {
+export const uploadMaterial = (courseId, file, materialType, description = "") => {
   const form = new FormData();
   form.append("file", file);
   form.append("material_type", materialType);
+  if (description) form.append("description", description);
   return api.post(`/courses/${courseId}/upload`, form).then((r) => r.data);
 };
 export const getMaterials = (courseId) => api.get(`/courses/${courseId}/materials`).then((r) => r.data);

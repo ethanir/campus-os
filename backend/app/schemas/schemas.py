@@ -33,6 +33,7 @@ class MaterialResponse(BaseModel):
     course_id: int
     filename: str
     material_type: str
+    image_description: str = ""
     uploaded_at: datetime
 
     class Config:

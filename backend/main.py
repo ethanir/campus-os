@@ -37,17 +37,25 @@ app.include_router(planner.router)
 @app.on_event("startup")
 def on_startup():
     init_db()
-    # Auto-migrate: add context_notes column if missing
+    # Auto-migrate: add columns if missing
     from app.core.database import engine
     import sqlalchemy
+    migrations = [
+        "ALTER TABLE assignments ADD COLUMN context_notes TEXT DEFAULT ''",
+        "ALTER TABLE materials ADD COLUMN page_images_dir TEXT DEFAULT ''",
+        "ALTER TABLE materials ADD COLUMN image_description TEXT DEFAULT ''",
+        "UPDATE materials SET material_type = 'completed_work' WHERE material_type = 'assignment'",
+    ]
     try:
         with engine.connect() as conn:
-            conn.execute(sqlalchemy.text("ALTER TABLE assignments ADD COLUMN context_notes TEXT DEFAULT ''"))
-            conn.execute(sqlalchemy.text("ALTER TABLE materials ADD COLUMN page_images_dir TEXT DEFAULT ''"))
-            conn.execute(sqlalchemy.text("UPDATE materials SET material_type = 'completed_work' WHERE material_type = 'assignment'"))
+            for sql in migrations:
+                try:
+                    conn.execute(sqlalchemy.text(sql))
+                except Exception:
+                    pass  # Column already exists or migration already applied
             conn.commit()
     except Exception:
-        pass  # Column already exists
+        pass
 
 
 @app.get("/")

@@ -22,39 +22,6 @@ def extract_text(file_path: str) -> str:
     return extractor(file_path)
 
 
-def extract_pdf_page_images(file_path: str, output_dir: str, dpi: int = 72, max_pages: int = 30) -> list[str]:
-    """Rasterize PDF pages that contain figures/images as PNGs.
-    
-    Returns list of saved image file paths.
-    Only rasterizes pages that have embedded images (graphs, figures, diagrams).
-    """
-    try:
-        doc = fitz.open(file_path)
-    except Exception:
-        return []
-    
-    img_dir = Path(output_dir) / "page_images"
-    img_dir.mkdir(parents=True, exist_ok=True)
-    
-    image_paths = []
-    for i, page in enumerate(doc):
-        if len(image_paths) >= max_pages:
-            break
-        # Check if this page has embedded images (figures, graphs, diagrams)
-        if page.get_images():
-            try:
-                pix = page.get_pixmap(dpi=dpi)
-                stem = Path(file_path).stem.replace(" ", "_")[:50]
-                img_path = str(img_dir / f"{stem}_p{i + 1}.png")
-                pix.save(img_path)
-                image_paths.append(img_path)
-            except Exception:
-                continue
-    
-    doc.close()
-    return image_paths
-
-
 def _extract_pdf(file_path: str) -> str:
     """Extract text from PDF using PyMuPDF."""
     doc = fitz.open(file_path)

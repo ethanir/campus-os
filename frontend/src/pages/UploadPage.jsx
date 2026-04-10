@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, FileText, Check, Loader2, AlertCircle } from "lucide-react";
+import { Upload, FileText, Check, Loader2, AlertCircle, Image } from "lucide-react";
 import { getCourses, uploadMaterial } from "../api/client";
 
 const MATERIAL_TYPES = [
   { value: "syllabus", label: "Syllabus" },
   { value: "slides", label: "Lecture Slides" },
   { value: "textbook", label: "Textbook / Reading" },
-  { value: "assignment", label: "Assignment Spec" },
+  { value: "reference_image", label: "📷 Reference Image" },
+  { value: "completed_work", label: "Past Work" },
   { value: "announcement", label: "Announcement" },
   { value: "other", label: "Other" },
 ];
@@ -15,6 +16,7 @@ export default function UploadPage() {
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [materialType, setMaterialType] = useState("other");
+  const [imageDescription, setImageDescription] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [uploads, setUploads] = useState([]);
   const fileInput = useRef(null);
@@ -22,6 +24,8 @@ export default function UploadPage() {
   useEffect(() => {
     getCourses().then((c) => { setCourses(c); if (c.length > 0) setSelectedCourse(c[0].id); });
   }, []);
+
+  const isRefImage = materialType === "reference_image";
 
   const addFiles = (files) => {
     const newUploads = Array.from(files).map((f) => ({ file: f, status: "pending", result: null }));
@@ -36,7 +40,7 @@ export default function UploadPage() {
       if (uploads[i].status !== "pending") continue;
       setUploads((prev) => prev.map((u, j) => j === i ? { ...u, status: "uploading" } : u));
       try {
-        const result = await uploadMaterial(selectedCourse, uploads[i].file, materialType);
+        const result = await uploadMaterial(selectedCourse, uploads[i].file, materialType, isRefImage ? imageDescription : "");
         setUploads((prev) => prev.map((u, j) => j === i ? { ...u, status: "done", result } : u));
       } catch { setUploads((prev) => prev.map((u, j) => j === i ? { ...u, status: "error" } : u)); }
     }
@@ -48,7 +52,7 @@ export default function UploadPage() {
     <div className="animate-fade-up">
       <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>Upload Materials</h1>
       <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-        Syllabus, slides, textbooks, announcements — drop it all here.
+        Syllabus, slides, textbooks, reference images — drop it all here.
       </p>
 
       {/* Selectors */}
@@ -64,13 +68,29 @@ export default function UploadPage() {
         </div>
         <div className="flex-1">
           <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
-          <select value={materialType} onChange={(e) => setMaterialType(e.target.value)}
+          <select value={materialType} onChange={(e) => { setMaterialType(e.target.value); setImageDescription(""); }}
             className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none"
             style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)" }}>
             {MATERIAL_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
       </div>
+
+      {/* Description field for reference images */}
+      {isRefImage && (
+        <div className="mb-5">
+          <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>DESCRIBE THIS IMAGE</label>
+          <textarea
+            value={imageDescription}
+            onChange={(e) => setImageDescription(e.target.value)}
+            placeholder="e.g. Fig 2.1 — free body diagram showing forces on inclined plane, used in HW3 Q2"
+            className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none resize-none"
+            rows={2}
+            style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)", lineHeight: 1.5 }}
+          />
+          <p className="text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>Helps the AI understand the figure. Include fig numbers, labels, what it represents.</p>
+        </div>
+      )}
 
       {/* Drop zone */}
       <div
@@ -83,10 +103,10 @@ export default function UploadPage() {
           border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
           background: dragOver ? `rgba(var(--accent-rgb), 0.03)` : "transparent",
         }}>
-        <Upload size={28} className="mx-auto mb-3" style={{ color: dragOver ? "var(--accent)" : "var(--text-dim)" }} />
-        <p className="font-medium mb-1" style={{ color: "var(--text)" }}>Drop files here or click to browse</p>
-        <p className="text-xs" style={{ color: "var(--text-dim)" }}>PDF, PPTX, TXT, MD — up to 50MB each</p>
-        <input ref={fileInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden"
+        {isRefImage ? <Image size={28} className="mx-auto mb-3" style={{ color: dragOver ? "var(--accent)" : "var(--text-dim)" }} /> : <Upload size={28} className="mx-auto mb-3" style={{ color: dragOver ? "var(--accent)" : "var(--text-dim)" }} />}
+        <p className="font-medium mb-1" style={{ color: "var(--text)" }}>{isRefImage ? "Drop images here or click to browse" : "Drop files here or click to browse"}</p>
+        <p className="text-xs" style={{ color: "var(--text-dim)" }}>{isRefImage ? "PNG, JPG, WEBP — screenshots, cropped figures" : "PDF, PPTX, TXT, MD — up to 50MB each"}</p>
+        <input ref={fileInput} type="file" multiple accept={isRefImage ? ".png,.jpg,.jpeg,.webp,.gif" : ".pdf,.pptx,.txt,.md,.doc,.docx"} className="hidden"
           onChange={(e) => { if (e.target.files.length) addFiles(e.target.files); }} />
       </div>
 

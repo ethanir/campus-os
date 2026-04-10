@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
 import {
-  ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen,
+  ArrowLeft, Sparkles, Loader2, FileText, Check, BookOpen, Image,
   ChevronDown, ChevronUp, X, GraduationCap, FileCheck, Eye, Upload, Trash2, Crown,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
@@ -49,9 +49,12 @@ export default function CoursePage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [contextUsage, setContextUsage] = useState(null);
   const [generations, setGenerations] = useState([]);
+  const [imageDescription, setImageDescription] = useState("");
   const fileInput = useRef(null);
   const assignmentInput = useRef(null);
   const [editingContext, setEditingContext] = useState({});
+
+  const isRefImage = uploadType === "reference_image";
 
   useEffect(() => {
     (async () => {
@@ -94,9 +97,13 @@ export default function CoursePage() {
 
   const handleUploadFiles = async (files) => {
     setUploading(true);
-    for (const file of files) try { await uploadMaterial(id, file, uploadType); } catch {}
+    for (const file of files) {
+      try {
+        await uploadMaterial(id, file, uploadType, isRefImage ? imageDescription : "");
+      } catch {}
+    }
     const m = await getMaterials(id); setMaterials(m); setSelectedMaterials(m.map((mat) => mat.id)); getContextUsage(id).then(setContextUsage).catch(() => {});
-    setUploading(false); setShowUpload(false);
+    setUploading(false); setShowUpload(false); setImageDescription("");
     if (fileInput.current) fileInput.current.value = "";
   };
   const handleUploadAssignment = async (files) => {
@@ -142,7 +149,7 @@ export default function CoursePage() {
           color: user?.has_purchased ? "var(--accent)" : "var(--text-dim)",
           border: `1px solid ${user?.has_purchased ? "var(--accent)" : "var(--border)"}`,
         }}>
-          {user?.has_purchased ? "⚡ VERIFIED · SONNET" : "STANDARD · GEMINI"}
+          {user?.has_purchased ? "⚡ VERIFIED · SONNET" : "STANDARD · GROQ"}
         </span>
       </div>
 
@@ -175,10 +182,15 @@ export default function CoursePage() {
             <div className="space-y-2">
               {materials.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 group" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                  <FileText size={13} style={{ color: "var(--text-dim)" }} />
+                  {m.material_type === "reference_image" ? <Image size={13} style={{ color: "var(--accent-pink)" }} /> : <FileText size={13} style={{ color: "var(--text-dim)" }} />}
                   <div className="flex-1 min-w-0">
                     <div className="text-xs truncate" style={{ color: "var(--text)" }}>{m.filename}</div>
-                    <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>{m.material_type}</div>
+                    <div className="font-mono text-[9px]" style={{ color: "var(--text-dim)" }}>
+                      {m.material_type === "reference_image" ? "ref image" : m.material_type}
+                      {m.material_type === "reference_image" && m.image_description && (
+                        <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>— {m.image_description.slice(0, 40)}{m.image_description.length > 40 ? "…" : ""}</span>
+                      )}
+                    </div>
                   </div>
                   <button onClick={() => setDeleteTarget({ type: "material", id: m.id, name: m.filename })} className="p-1 rounded opacity-0 group-hover:opacity-100 transition" style={{ color: "var(--accent-red)" }}><Trash2 size={12} /></button>
                 </div>
@@ -284,26 +296,43 @@ export default function CoursePage() {
 
       {/* Upload Modal */}
       {showUpload && (
-        <Modal onClose={() => setShowUpload(false)}>
+        <Modal onClose={() => { setShowUpload(false); setImageDescription(""); }}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Upload Materials</h2>
-            <button onClick={() => setShowUpload(false)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            <button onClick={() => { setShowUpload(false); setImageDescription(""); }} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
           </div>
           <div className="mb-4">
             <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>TYPE</label>
             <div className="flex flex-wrap gap-1.5">
-              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "completed_work", l: "Past Work" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
-                <button key={t.v} onClick={() => setUploadType(t.v)} className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
+              {[{ v: "slides", l: "Slides" }, { v: "textbook", l: "Textbook" }, { v: "completed_work", l: "Past Work" }, { v: "reference_image", l: "📷 Ref. Image" }, { v: "syllabus", l: "Syllabus" }, { v: "announcement", l: "Announcement" }, { v: "other", l: "Other" }].map((t) => (
+                <button key={t.v} onClick={() => { setUploadType(t.v); setImageDescription(""); }} className="font-mono text-[10px] font-bold tracking-wider px-3 py-1.5 rounded-lg transition"
                   style={{ background: uploadType === t.v ? `rgba(var(--accent-rgb), 0.1)` : "var(--bg-hover)", color: uploadType === t.v ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${uploadType === t.v ? "var(--accent)" : "var(--border)"}` }}>{t.l}</button>
               ))}
             </div>
           </div>
+
+          {/* Description field for reference images */}
+          {isRefImage && (
+            <div className="mb-4">
+              <label className="font-mono text-[10px] tracking-wider font-bold block mb-1.5" style={{ color: "var(--text-dim)" }}>DESCRIBE THIS IMAGE</label>
+              <textarea
+                value={imageDescription}
+                onChange={(e) => setImageDescription(e.target.value)}
+                placeholder="e.g. Fig 1.3(b) — star graph K₁,₃ used in Q5. Center node connected to 3 leaf nodes."
+                className="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none resize-none"
+                rows={3}
+                style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text)", lineHeight: 1.5 }}
+              />
+              <p className="text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>Helps the AI understand what the figure shows. Include figure numbers, labels, what it represents.</p>
+            </div>
+          )}
+
           <div onClick={() => fileInput.current?.click()} className="rounded-xl p-8 text-center cursor-pointer transition" style={{ border: "2px dashed var(--border)" }}
             onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleUploadFiles(Array.from(e.dataTransfer.files)); }}>
-            {uploading ? <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} /> : <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />}
-            <p className="text-sm" style={{ color: uploading ? "var(--accent)" : "var(--text)" }}>{uploading ? "Uploading..." : "Drop files or click to browse"}</p>
+            {uploading ? <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--accent)" }} /> : isRefImage ? <Image size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} /> : <Upload size={24} className="mx-auto mb-2" style={{ color: "var(--text-dim)" }} />}
+            <p className="text-sm" style={{ color: uploading ? "var(--accent)" : "var(--text)" }}>{uploading ? "Uploading..." : isRefImage ? "Drop image or click (PNG, JPG)" : "Drop files or click to browse"}</p>
           </div>
-          <input ref={fileInput} type="file" multiple accept=".pdf,.pptx,.txt,.md,.doc,.docx" className="hidden" onChange={(e) => { if (e.target.files.length) handleUploadFiles(Array.from(e.target.files)); }} />
+          <input ref={fileInput} type="file" multiple accept={isRefImage ? ".png,.jpg,.jpeg,.webp,.gif" : ".pdf,.pptx,.txt,.md,.doc,.docx"} className="hidden" onChange={(e) => { if (e.target.files.length) handleUploadFiles(Array.from(e.target.files)); }} />
         </Modal>
       )}
 

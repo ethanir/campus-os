@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user, require_credits, deduct_credits
 from app.models.models import Course, Material, MaterialType, User
 from app.schemas.schemas import CourseCreate, CourseResponse, MaterialResponse
-from app.services.file_extraction import extract_text, extract_pdf_page_images
+from app.services.file_extraction import extract_text
 from app.services.ai_service import parse_syllabus, parse_schedule_screenshot
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
@@ -100,6 +100,7 @@ async def upload_material(
     course_id: int,
     file: UploadFile = File(...),
     material_type: str = Form("other"),
+    description: str = Form(""),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -113,21 +114,30 @@ async def upload_material(
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    extracted = extract_text(str(file_path))
-    
-    # Extract page images from PDFs (for figures/graphs)
-    page_imgs_dir = ""
-    if file.filename.lower().endswith(".pdf"):
-        img_output = str(course_dir)
-        imgs = extract_pdf_page_images(str(file_path), img_output)
-        if imgs:
-            page_imgs_dir = str(Path(img_output) / "page_images")
-    
-    mat = Material(course_id=course_id, filename=file.filename, file_path=str(file_path), material_type=MaterialType(material_type), extracted_text=extracted, page_images_dir=page_imgs_dir)
+    # Reference images: store image file, no text extraction
+    if material_type == "reference_image":
+        mat = Material(
+            course_id=course_id,
+            filename=file.filename,
+            file_path=str(file_path),
+            material_type=MaterialType.REFERENCE_IMAGE,
+            extracted_text="",
+            image_description=description.strip(),
+        )
+    else:
+        extracted = extract_text(str(file_path))
+        mat = Material(
+            course_id=course_id,
+            filename=file.filename,
+            file_path=str(file_path),
+            material_type=MaterialType(material_type),
+            extracted_text=extracted,
+        )
+
     db.add(mat)
     db.commit()
     db.refresh(mat)
-    return MaterialResponse(id=mat.id, course_id=mat.course_id, filename=mat.filename, material_type=mat.material_type.value, uploaded_at=mat.uploaded_at)
+    return _material_response(mat)
 
 
 @router.get("/{course_id}/materials", response_model=list[MaterialResponse])
@@ -136,7 +146,7 @@ def list_materials(course_id: int, user: User = Depends(get_current_user), db: S
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     mats = db.query(Material).filter(Material.course_id == course_id).all()
-    return [MaterialResponse(id=m.id, course_id=m.course_id, filename=m.filename, material_type=m.material_type.value, uploaded_at=m.uploaded_at) for m in mats]
+    return [_material_response(m) for m in mats]
 
 
 @router.delete("/{course_id}/materials/{material_id}")
@@ -172,6 +182,15 @@ def _course_response(c: Course) -> CourseResponse:
         id=c.id, name=c.name, code=c.code, professor=c.professor,
         semester=c.semester, color=c.color, created_at=c.created_at,
         material_count=len(c.materials), assignment_count=len(c.assignments),
+    )
+
+
+def _material_response(m: Material) -> MaterialResponse:
+    return MaterialResponse(
+        id=m.id, course_id=m.course_id, filename=m.filename,
+        material_type=m.material_type.value,
+        image_description=getattr(m, 'image_description', '') or '',
+        uploaded_at=m.uploaded_at,
     )
 
 

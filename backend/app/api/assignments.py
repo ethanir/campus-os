@@ -10,7 +10,7 @@ from app.core.auth import get_current_user, require_credits, deduct_credits
 from app.models.models import Assignment, TaskStep, Course, Material, MaterialType, AssignmentStatus, User, Generation
 from app.schemas.schemas import AssignmentCreate, AssignmentResponse, TaskStepResponse, TaskStepToggle
 from app.services.ai_service import generate_task_steps, generate_draft, generate_homework_turnin, generate_homework_study
-from app.services.file_extraction import extract_text, extract_pdf_page_images
+from app.services.file_extraction import extract_text
 
 router = APIRouter(prefix="/api", tags=["assignments"])
 
@@ -98,16 +98,6 @@ async def upload_assignment(
         shutil.copyfileobj(file.file, f)
 
     extracted = extract_text(str(file_path))
-    
-    # Extract page images from PDF assignments
-    page_imgs_dir = ""
-    if file.filename.lower().endswith(".pdf"):
-        img_output = str(course_dir)
-        imgs = extract_pdf_page_images(str(file_path), img_output)
-        if imgs:
-            page_imgs_dir = str(Path(img_output) / "page_images")
-    
-    # Assignment files are NOT added to materials - they stay as assignments only
 
     title = file.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ")
     assignment = Assignment(course_id=course_id, title=title, description=extracted[:10000] if extracted else "")
@@ -159,14 +149,15 @@ def toggle_step(step_id: int, data: TaskStepToggle, user: User = Depends(get_cur
 # ── AI Generation (credits deducted AFTER success) ─────
 
 def _gather_course_images(db, course_id):
-    """Collect all page image paths from course materials."""
-    from pathlib import Path
-    materials = db.query(Material).filter(Material.course_id == course_id).all()
+    """Collect reference image file paths from course materials."""
+    materials = db.query(Material).filter(
+        Material.course_id == course_id,
+        Material.material_type == MaterialType.REFERENCE_IMAGE,
+    ).all()
     image_paths = []
     for m in materials:
-        if m.page_images_dir and Path(m.page_images_dir).is_dir():
-            for img in sorted(Path(m.page_images_dir).glob("*.png")):
-                image_paths.append(str(img))
+        if m.file_path and Path(m.file_path).exists():
+            image_paths.append(str(m.file_path))
     return image_paths
 
 
@@ -183,6 +174,13 @@ def _gather_course_context(db, course_id):
     materials = db.query(Material).filter(Material.course_id == course_id).all()
     parts = []
     for m in materials:
+        # Reference images: include description as text context (image itself sent separately via vision)
+        if m.material_type == MaterialType.REFERENCE_IMAGE:
+            desc = (getattr(m, 'image_description', '') or '').strip()
+            if desc:
+                parts.append(f"=== REFERENCE IMAGE: {m.filename} ===\nUser description: {desc}\n(The actual image is attached separately for the AI to see)")
+            continue
+
         if not m.extracted_text:
             continue
         label = TYPE_LABELS.get(m.material_type.value, "COURSE MATERIAL")

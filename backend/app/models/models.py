@@ -12,6 +12,7 @@ class MaterialType(str, enum.Enum):
     TEXTBOOK = "textbook"
     COMPLETED_WORK = "completed_work"
     ANNOUNCEMENT = "announcement"
+    REFERENCE_IMAGE = "reference_image"
     OTHER = "other"
 
 
@@ -62,7 +63,8 @@ class Material(Base):
     file_path = Column(String(500), nullable=False)
     material_type = Column(Enum(MaterialType), default=MaterialType.OTHER)
     extracted_text = Column(Text, default="")
-    page_images_dir = Column(String(500), default="")  # Dir containing rasterized page images
+    page_images_dir = Column(String(500), default="")  # DEPRECATED — kept for migration compat
+    image_description = Column(Text, default="")  # User description for reference images
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     course = relationship("Course", back_populates="materials")

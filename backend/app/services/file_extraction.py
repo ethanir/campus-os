@@ -23,11 +23,11 @@ def extract_text(file_path: str) -> str:
 
 
 def _extract_pdf(file_path: str) -> str:
-    """Extract text from PDF using PyMuPDF."""
+    """Extract text from PDF using PyMuPDF with superscript detection."""
     doc = fitz.open(file_path)
     pages = []
     for i, page in enumerate(doc):
-        text = page.get_text()
+        text = _extract_page_with_superscripts(page)
         has_images = bool(page.get_images())
         if text.strip():
             header = f"--- PAGE {i + 1}"
@@ -37,6 +37,45 @@ def _extract_pdf(file_path: str) -> str:
             pages.append(f"{header}\n{text.strip()}")
     doc.close()
     return "\n\n".join(pages)
+
+
+def _extract_page_with_superscripts(page) -> str:
+    """Extract text preserving superscripts/subscripts as ^() and _() notation."""
+    blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]
+    result = []
+    for block in blocks:
+        if block["type"] != 0:  # skip image blocks
+            continue
+        for line in block["lines"]:
+            spans = line["spans"]
+            if not spans:
+                continue
+            # Find the dominant (most common) font size in this line
+            sizes = [s["size"] for s in spans]
+            if not sizes:
+                continue
+            dominant_size = max(set(sizes), key=sizes.count)
+            line_text = ""
+            for span in spans:
+                text = span["text"]
+                if not text:
+                    continue
+                size_ratio = span["size"] / dominant_size if dominant_size > 0 else 1
+                # Check vertical position relative to line baseline
+                span_y = span["origin"][1]
+                line_y = line["spans"][0]["origin"][1]
+                y_offset = line_y - span_y  # positive = above baseline
+                
+                if size_ratio < 0.85 and y_offset > 1:
+                    # Superscript: smaller font, positioned above baseline
+                    line_text += "^(" + text.strip() + ")"
+                elif size_ratio < 0.85 and y_offset < -1:
+                    # Subscript: smaller font, positioned below baseline
+                    line_text += "_(" + text.strip() + ")"
+                else:
+                    line_text += text
+            result.append(line_text)
+    return "\n".join(result)
 
 
 def _extract_pptx(file_path: str) -> str:
